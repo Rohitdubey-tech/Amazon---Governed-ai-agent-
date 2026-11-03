@@ -1,0 +1,46 @@
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: agentshield-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: agentshield_ai
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: agentshield-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+      - APP_SECRET_KEY=dev_app_secret_super_secure_key_12345
+      - JWT_SECRET_KEY=dev_jwt_secret_super_secure_key_67890
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_DATABASE=agentshield_ai
+      - FRONTEND_ORIGIN=http://localhost:3000,http://localhost:5173
+      - STORAGE_MODE=local
+    depends_on:
+      - mongodb
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: agentshield-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
+
