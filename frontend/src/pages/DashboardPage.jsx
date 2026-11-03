@@ -8,7 +8,13 @@ import {
   ChevronDown,
   ArrowUpRight,
   Star,
-  ShieldCheck
+  ShieldCheck,
+  Download,
+  RefreshCw,
+  ExternalLink,
+  FileText,
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
@@ -34,7 +40,52 @@ export function DashboardPage() {
   const [timeRange, setTimeRange] = useState('Today');
   const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
   const [hoveredSlice, setHoveredSlice] = useState(null);
+  const [activeMenu, setActiveMenu] = useState(null); // 'sales' | 'customers' | 'plan' | null
+  const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigate();
+
+  // Close menus on outside click or Escape key
+  useEffect(() => {
+    const handleOutsideClick = () => setActiveMenu(null);
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setActiveMenu(null);
+    };
+    window.addEventListener('click', handleOutsideClick);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('click', handleOutsideClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const sum = await api.dashboard.getSummary();
+      const claims = await api.claims.list();
+      setSummary(sum);
+      setRecentClaims(claims.slice(0, 4));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTimeout(() => setRefreshing(false), 500);
+    }
+  };
+
+  const exportCSV = (filename, headers, rows) => {
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -71,6 +122,29 @@ export function DashboardPage() {
     { time: '7', val: 78 },
     { time: '8', val: 95 }
   ];
+
+  const exportSalesCSV = () => {
+    const headers = ['Category', 'Sales Amount (USD)', 'Percentage of Total'];
+    const total = donutData.reduce((acc, cur) => acc + cur.value, 0);
+    const rows = donutData.map(d => [
+      d.name,
+      `$${d.value.toLocaleString()}`,
+      `${((d.value / total) * 100).toFixed(1)}%`
+    ]);
+    exportCSV('sales_overview_breakdown.csv', headers, rows);
+  };
+
+  const customerList = [
+    { name: 'Danny Liu', email: 'dannyliu@gmail.com', deals: '1,023', value: '$37,431', initials: 'DL', color: 'from-pink-500 to-rose-400' },
+    { name: 'Bella Deviani', email: 'belladeviani@gmail.com', deals: '963', value: '$30,423', initials: 'BD', color: 'from-amber-500 to-orange-400' },
+    { name: 'Darrell Steward', email: 'darrellsteward@gmail.com', deals: '843', value: '$28,549', initials: 'DS', color: 'from-emerald-500 to-teal-400' }
+  ];
+
+  const exportCustomersCSV = () => {
+    const headers = ['Name', 'Email', 'Deals Completed', 'Total Deal Value'];
+    const rows = customerList.map(c => [c.name, c.email, c.deals, c.value]);
+    exportCSV('enterprise_customer_deals.csv', headers, rows);
+  };
 
   return (
     <div className="space-y-6">
@@ -140,7 +214,70 @@ export function DashboardPage() {
         >
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-bold text-white">Sales Overview</h3>
-            <MoreVertical className="w-4 h-4 text-slate-500 cursor-pointer" />
+            <div className="relative">
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveMenu(activeMenu === 'sales' ? null : 'sales');
+                }}
+                aria-label="Sales Overview actions"
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </motion.button>
+
+              <AnimatePresence>
+                {activeMenu === 'sales' && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    transition={{ duration: 0.12 }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute right-0 mt-1 w-52 rounded-xl bg-[#151C28]/95 backdrop-blur-xl border border-white/10 shadow-2xl py-1.5 z-40 text-xs text-slate-200"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveMenu(null);
+                        navigate('/claims');
+                      }}
+                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 hover:text-[#ccff00] transition-colors cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                      <span>View Claims Breakdown</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveMenu(null);
+                        exportSalesCSV();
+                      }}
+                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 hover:text-[#ccff00] transition-colors cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Export Breakdown (CSV)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveMenu(null);
+                        handleRefresh();
+                      }}
+                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 hover:text-[#ccff00] transition-colors border-t border-white/5 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${refreshing ? 'animate-spin' : ''}`} />
+                      <span>Refresh Sales Metrics</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 my-2">
@@ -382,7 +519,70 @@ export function DashboardPage() {
         <div className="lg:col-span-7 bg-[#121620] rounded-2xl p-5 border border-[#1E2433]">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-white">Customer list</h3>
-            <MoreVertical className="w-4 h-4 text-slate-500 cursor-pointer" />
+            <div className="relative">
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveMenu(activeMenu === 'customers' ? null : 'customers');
+                }}
+                aria-label="Customer list actions"
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </motion.button>
+
+              <AnimatePresence>
+                {activeMenu === 'customers' && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    transition={{ duration: 0.12 }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute right-0 mt-1 w-52 rounded-xl bg-[#151C28]/95 backdrop-blur-xl border border-white/10 shadow-2xl py-1.5 z-40 text-xs text-slate-200"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveMenu(null);
+                        navigate('/claims');
+                      }}
+                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 hover:text-[#ccff00] transition-colors cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                      <span>View Customer Ledger</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveMenu(null);
+                        exportCustomersCSV();
+                      }}
+                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 hover:text-[#ccff00] transition-colors cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Export Deals (CSV)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveMenu(null);
+                        handleRefresh();
+                      }}
+                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 hover:text-[#ccff00] transition-colors border-t border-white/5 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${refreshing ? 'animate-spin' : ''}`} />
+                      <span>Refresh Customer List</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -395,65 +595,28 @@ export function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#18202D]">
-                <motion.tr 
-                  whileHover={{ backgroundColor: '#151C28' }}
-                  className="transition-colors cursor-pointer" 
-                  onClick={() => navigate('/claims')}
-                >
-                  <td className="py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-pink-500 to-rose-400 text-white font-bold text-[10px] flex items-center justify-center">
-                        DL
+                {customerList.map((cust) => (
+                  <motion.tr 
+                    key={cust.name}
+                    whileHover={{ backgroundColor: '#151C28' }}
+                    className="transition-colors cursor-pointer" 
+                    onClick={() => navigate('/claims')}
+                  >
+                    <td className="py-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-7 h-7 rounded-full bg-gradient-to-tr ${cust.color} text-white font-bold text-[10px] flex items-center justify-center`}>
+                          {cust.initials}
+                        </div>
+                        <div>
+                          <div className="font-bold text-white">{cust.name}</div>
+                          <div className="text-[10px] text-slate-500">{cust.email}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-bold text-white">Danny Liu</div>
-                        <div className="text-[10px] text-slate-500">dannyliu@gmail.com</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 text-center text-slate-300 font-medium">1,023</td>
-                  <td className="py-3 text-right font-bold text-white font-mono">$37,431</td>
-                </motion.tr>
-
-                <motion.tr 
-                  whileHover={{ backgroundColor: '#151C28' }}
-                  className="transition-colors cursor-pointer" 
-                  onClick={() => navigate('/claims')}
-                >
-                  <td className="py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 to-orange-400 text-white font-bold text-[10px] flex items-center justify-center">
-                        BD
-                      </div>
-                      <div>
-                        <div className="font-bold text-white">Bella Deviani</div>
-                        <div className="text-[10px] text-slate-500">belladeviani@gmail.com</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 text-center text-slate-300 font-medium">963</td>
-                  <td className="py-3 text-right font-bold text-white font-mono">$30,423</td>
-                </motion.tr>
-
-                <motion.tr 
-                  whileHover={{ backgroundColor: '#151C28' }}
-                  className="transition-colors cursor-pointer" 
-                  onClick={() => navigate('/claims')}
-                >
-                  <td className="py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-bold text-[10px] flex items-center justify-center">
-                        DS
-                      </div>
-                      <div>
-                        <div className="font-bold text-white">Darrell Steward</div>
-                        <div className="text-[10px] text-slate-500">darrellsteward@gmail.com</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 text-center text-slate-300 font-medium">843</td>
-                  <td className="py-3 text-right font-bold text-white font-mono">$28,549</td>
-                </motion.tr>
+                    </td>
+                    <td className="py-3 text-center text-slate-300 font-medium">{cust.deals}</td>
+                    <td className="py-3 text-right font-bold text-white font-mono">{cust.value}</td>
+                  </motion.tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -472,7 +635,70 @@ export function DashboardPage() {
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>Premium Plan</span>
               </div>
-              <MoreVertical className="w-4 h-4 text-emerald-400 cursor-pointer" />
+              <div className="relative">
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveMenu(activeMenu === 'plan' ? null : 'plan');
+                  }}
+                  aria-label="Plan actions"
+                  className="p-1 rounded-lg text-emerald-300 hover:text-white hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </motion.button>
+
+                <AnimatePresence>
+                  {activeMenu === 'plan' && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                      transition={{ duration: 0.12 }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute right-0 mt-1 w-52 rounded-xl bg-[#0B1E13]/95 backdrop-blur-xl border border-emerald-500/30 shadow-2xl py-1.5 z-40 text-xs text-slate-200"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveMenu(null);
+                          navigate('/policies');
+                        }}
+                        className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-emerald-500/20 hover:text-[#ccff00] transition-colors cursor-pointer"
+                      >
+                        <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Configure Policy Scope</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveMenu(null);
+                          navigate('/workspace');
+                        }}
+                        className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-emerald-500/20 hover:text-[#ccff00] transition-colors cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Launch Agent Workspace</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveMenu(null);
+                          navigate('/evaluations');
+                        }}
+                        className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-emerald-500/20 hover:text-[#ccff00] transition-colors border-t border-emerald-500/20 cursor-pointer"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Security Benchmarks</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
 
             <div className="flex items-baseline gap-1 mt-2">

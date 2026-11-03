@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ShieldCheck,
   Phone,
-  MoreVertical,
   Activity,
   ArrowUpRight,
   ShieldAlert,
