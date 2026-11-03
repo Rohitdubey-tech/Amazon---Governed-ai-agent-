@@ -46,9 +46,15 @@ export function DashboardPage() {
 
   // Close menus on outside click or Escape key
   useEffect(() => {
-    const handleOutsideClick = () => setActiveMenu(null);
+    const handleOutsideClick = () => {
+      setActiveMenu(null);
+      setTimeDropdownOpen(false);
+    };
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setActiveMenu(null);
+      if (e.key === 'Escape') {
+        setActiveMenu(null);
+        setTimeDropdownOpen(false);
+      }
     };
     window.addEventListener('click', handleOutsideClick);
     window.addEventListener('keydown', handleKeyDown);
@@ -103,47 +109,155 @@ export function DashboardPage() {
     loadData();
   }, []);
 
-  // Donut chart data matching the screenshot circular chart
-  const donutData = [
-    { name: 'Electronic', value: 55640, color: '#ccff00' },
-    { name: 'Furniture', value: 11420, color: '#22c55e' },
-    { name: 'Clothes', value: 1840, color: '#38bdf8' },
-    { name: 'Shoes', value: 2120, color: '#e2e8f0' }
-  ];
+  // Dynamic datasets reacting seamlessly to Today / This Week / This Quarter selection
+  const timeRangeData = {
+    'Today': {
+      metrics: {
+        netRevenue: 128450,
+        netRevenueTrend: '+2.4% vs yesterday',
+        arr: 1498200,
+        arrTrend: '+0.2% vs yesterday',
+        goalPercent: 18,
+        goalSubtitle: 'Goal $150k / Day',
+        newOrders: 342,
+        newOrdersTrend: '+8% vs yesterday',
+        newCustomers: '014',
+        newCustomersLabel: 'Today',
+        grossProfit: '$4.2k',
+        grossProfitTrend: '▲ +18% Daily Profit',
+        totalProfit: '$18,420.50'
+      },
+      totalSales: 11520,
+      centerVisits: {
+        value: '14k',
+        label: 'Daily Visits'
+      },
+      donutData: [
+        { name: 'Electronic', value: 8240, color: '#ccff00' },
+        { name: 'Furniture', value: 2180, color: '#22c55e' },
+        { name: 'Clothes', value: 680, color: '#38bdf8' },
+        { name: 'Shoes', value: 420, color: '#e2e8f0' }
+      ],
+      waveData: [
+        { time: '9h', val: 18 },
+        { time: '10h', val: 24 },
+        { time: '11h', val: 36 },
+        { time: '12h', val: 42 },
+        { time: '13h', val: 38 },
+        { time: '14h', val: 56 },
+        { time: '15h', val: 64 },
+        { time: '16h', val: 72 }
+      ],
+      customerList: [
+        { name: 'Danny Liu', email: 'dannyliu@gmail.com', deals: '14', value: '$1,420', initials: 'DL', color: 'from-pink-500 to-rose-400' },
+        { name: 'Bella Deviani', email: 'belladeviani@gmail.com', deals: '9', value: '$890', initials: 'BD', color: 'from-amber-500 to-orange-400' },
+        { name: 'Darrell Steward', email: 'darrellsteward@gmail.com', deals: '6', value: '$640', initials: 'DS', color: 'from-emerald-500 to-teal-400' }
+      ]
+    },
+    'This Week': {
+      metrics: {
+        netRevenue: 842190,
+        netRevenueTrend: '+5.8% vs last week',
+        arr: 1504800,
+        arrTrend: '+1.8% vs last week',
+        goalPercent: 45,
+        goalSubtitle: 'Goal $900k / Wk',
+        newOrders: 2840,
+        newOrdersTrend: '+12% vs last week',
+        newCustomers: '084',
+        newCustomersLabel: 'This Week',
+        grossProfit: '$25.6k',
+        grossProfitTrend: '▲ +47% Weekly Profit',
+        totalProfit: '$136,755.77'
+      },
+      totalSales: 71020,
+      centerVisits: {
+        value: '102k',
+        label: 'Weekly Visits'
+      },
+      donutData: [
+        { name: 'Electronic', value: 55640, color: '#ccff00' },
+        { name: 'Furniture', value: 11420, color: '#22c55e' },
+        { name: 'Clothes', value: 1840, color: '#38bdf8' },
+        { name: 'Shoes', value: 2120, color: '#e2e8f0' }
+      ],
+      waveData: [
+        { time: 'Mon', val: 32 },
+        { time: 'Tue', val: 45 },
+        { time: 'Wed', val: 40 },
+        { time: 'Thu', val: 68 },
+        { time: 'Fri', val: 55 },
+        { time: 'Sat', val: 85 },
+        { time: 'Sun', val: 95 }
+      ],
+      customerList: [
+        { name: 'Danny Liu', email: 'dannyliu@gmail.com', deals: '1,023', value: '$37,431', initials: 'DL', color: 'from-pink-500 to-rose-400' },
+        { name: 'Bella Deviani', email: 'belladeviani@gmail.com', deals: '963', value: '$30,423', initials: 'BD', color: 'from-amber-500 to-orange-400' },
+        { name: 'Darrell Steward', email: 'darrellsteward@gmail.com', deals: '843', value: '$28,549', initials: 'DS', color: 'from-emerald-500 to-teal-400' }
+      ]
+    },
+    'This Quarter': {
+      metrics: {
+        netRevenue: 3131021,
+        netRevenueTrend: '+14.2% vs last quarter',
+        arr: 1511121,
+        arrTrend: '+32% vs last quarter',
+        goalPercent: 71,
+        goalSubtitle: 'Goal $2.1M / Qtr',
+        newOrders: 18221,
+        newOrdersTrend: '+11% vs last quarter',
+        newCustomers: '412',
+        newCustomersLabel: 'This Quarter',
+        grossProfit: '$188.4k',
+        grossProfitTrend: '▲ +34% Quarterly Profit',
+        totalProfit: '$742,910.15'
+      },
+      totalSales: 348650,
+      centerVisits: {
+        value: '680k',
+        label: 'Quarterly Visits'
+      },
+      donutData: [
+        { name: 'Electronic', value: 242100, color: '#ccff00' },
+        { name: 'Furniture', value: 64800, color: '#22c55e' },
+        { name: 'Clothes', value: 24500, color: '#38bdf8' },
+        { name: 'Shoes', value: 17250, color: '#e2e8f0' }
+      ],
+      waveData: [
+        { time: 'W1', val: 48 },
+        { time: 'W2', val: 54 },
+        { time: 'W3', val: 62 },
+        { time: 'W4', val: 75 },
+        { time: 'W5', val: 82 },
+        { time: 'W6', val: 90 },
+        { time: 'W7', val: 110 },
+        { time: 'W8', val: 125 }
+      ],
+      customerList: [
+        { name: 'Danny Liu', email: 'dannyliu@gmail.com', deals: '4,210', value: '$162,400', initials: 'DL', color: 'from-pink-500 to-rose-400' },
+        { name: 'Bella Deviani', email: 'belladeviani@gmail.com', deals: '3,890', value: '$128,650', initials: 'BD', color: 'from-amber-500 to-orange-400' },
+        { name: 'Darrell Steward', email: 'darrellsteward@gmail.com', deals: '3,410', value: '$114,800', initials: 'DS', color: 'from-emerald-500 to-teal-400' }
+      ]
+    }
+  };
 
-  // Wave area chart data matching the glowing green wave in the screenshot
-  const waveData = [
-    { time: '1', val: 32 },
-    { time: '2', val: 45 },
-    { time: '3', val: 40 },
-    { time: '4', val: 68 },
-    { time: '5', val: 55 },
-    { time: '6', val: 85 },
-    { time: '7', val: 78 },
-    { time: '8', val: 95 }
-  ];
+  const currentData = timeRangeData[timeRange] || timeRangeData['Today'];
+  const { metrics, donutData, waveData, customerList, totalSales, centerVisits } = currentData;
 
   const exportSalesCSV = () => {
     const headers = ['Category', 'Sales Amount (USD)', 'Percentage of Total'];
-    const total = donutData.reduce((acc, cur) => acc + cur.value, 0);
     const rows = donutData.map(d => [
       d.name,
       `$${d.value.toLocaleString()}`,
-      `${((d.value / total) * 100).toFixed(1)}%`
+      `${((d.value / totalSales) * 100).toFixed(1)}%`
     ]);
-    exportCSV('sales_overview_breakdown.csv', headers, rows);
+    exportCSV(`sales_overview_${timeRange.toLowerCase().replace(/\\s+/g, '_')}.csv`, headers, rows);
   };
-
-  const customerList = [
-    { name: 'Danny Liu', email: 'dannyliu@gmail.com', deals: '1,023', value: '$37,431', initials: 'DL', color: 'from-pink-500 to-rose-400' },
-    { name: 'Bella Deviani', email: 'belladeviani@gmail.com', deals: '963', value: '$30,423', initials: 'BD', color: 'from-amber-500 to-orange-400' },
-    { name: 'Darrell Steward', email: 'darrellsteward@gmail.com', deals: '843', value: '$28,549', initials: 'DS', color: 'from-emerald-500 to-teal-400' }
-  ];
 
   const exportCustomersCSV = () => {
     const headers = ['Name', 'Email', 'Deals Completed', 'Total Deal Value'];
     const rows = customerList.map(c => [c.name, c.email, c.deals, c.value]);
-    exportCSV('enterprise_customer_deals.csv', headers, rows);
+    exportCSV(`customer_deals_${timeRange.toLowerCase().replace(/\\s+/g, '_')}.csv`, headers, rows);
   };
 
   return (
@@ -184,24 +298,24 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Net Revenue"
-          value={`$${(3131021).toLocaleString()}`}
-          trend="0.4% vs last month"
+          value={`$${metrics.netRevenue.toLocaleString()}`}
+          trend={metrics.netRevenueTrend}
         />
         <StatCard
           title="ARR"
-          value={`$${(1511121).toLocaleString()}`}
-          trend="32% vs last quarter"
+          value={`$${metrics.arr.toLocaleString()}`}
+          trend={metrics.arrTrend}
         />
         <StatCard
           title="Quarterly Revenue Goal"
-          value="71%"
-          gaugePercent={71}
-          subtitle="Goal $2.1M"
+          value={`${metrics.goalPercent}%`}
+          gaugePercent={metrics.goalPercent}
+          subtitle={metrics.goalSubtitle}
         />
         <StatCard
           title="New Orders"
-          value={(18221).toLocaleString()}
-          trend="11% vs last quarter"
+          value={metrics.newOrders.toLocaleString()}
+          trend={metrics.newOrdersTrend}
         />
       </div>
 
@@ -327,20 +441,20 @@ export function DashboardPage() {
                         ${hoveredSlice.value.toLocaleString()}
                       </span>
                       <span className="text-[10px] font-mono font-semibold text-emerald-400">
-                        {((hoveredSlice.value / 71020) * 100).toFixed(1)}%
+                        {((hoveredSlice.value / totalSales) * 100).toFixed(1)}%
                       </span>
                     </motion.div>
                   ) : (
                     <motion.div
-                      key="default"
+                      key={`default-${timeRange}`}
                       initial={{ scale: 0.9, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       exit={{ scale: 0.9, opacity: 0 }}
                       transition={{ duration: 0.12 }}
                       className="flex flex-col items-center justify-center"
                     >
-                      <span className="text-2xl font-black text-white leading-none tracking-tight">102k</span>
-                      <span className="text-[10px] text-slate-400 font-medium mt-1">Weekly Visits</span>
+                      <span className="text-2xl font-black text-white leading-none tracking-tight">{centerVisits.value}</span>
+                      <span className="text-[10px] text-slate-400 font-medium mt-1">{centerVisits.label}</span>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -356,7 +470,7 @@ export function DashboardPage() {
               >
                 <div className="w-2 h-2 rounded-full bg-[#ccff00] animate-neon-pulse" />
                 <span className="text-slate-400 text-[11px]">Number of Sales:</span>
-                <span className="font-bold text-white font-mono">$71,020</span>
+                <span className="font-bold text-white font-mono">${totalSales.toLocaleString()}</span>
               </motion.div>
 
               <div className="grid grid-cols-2 gap-2 text-xs pt-1">
@@ -381,7 +495,7 @@ export function DashboardPage() {
                           </span>
                         </div>
                         <span className="text-[10px] text-slate-500 font-mono">
-                          {((item.value / 71020) * 100).toFixed(0)}%
+                          {((item.value / totalSales) * 100).toFixed(0)}%
                         </span>
                       </div>
                       <div className={`font-mono text-xs ${isHovered ? 'font-black text-[#ccff00]' : 'font-bold text-white'}`}>
@@ -407,8 +521,8 @@ export function DashboardPage() {
                 <span className="w-2 h-2 rounded-full bg-[#ccff00]" />
                 <span>New customers</span>
               </div>
-              <div className="text-xl font-extrabold text-white mt-1">002</div>
-              <div className="text-[10px] text-slate-500 mt-0.5">Last Week</div>
+              <div className="text-xl font-extrabold text-white mt-1">{metrics.newCustomers}</div>
+              <div className="text-[10px] text-slate-500 mt-0.5">{metrics.newCustomersLabel}</div>
             </motion.div>
 
             <motion.div 
@@ -419,8 +533,8 @@ export function DashboardPage() {
                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
                 <span>Gross profit</span>
               </div>
-              <div className="text-xl font-extrabold text-white mt-1">$25.6k</div>
-              <div className="text-[10px] text-[#ccff00] mt-0.5 font-semibold">▲ +47% Weekly Profit</div>
+              <div className="text-xl font-extrabold text-white mt-1">{metrics.grossProfit}</div>
+              <div className="text-[10px] text-[#ccff00] mt-0.5 font-semibold">{metrics.grossProfitTrend}</div>
             </motion.div>
           </div>
 
@@ -432,10 +546,10 @@ export function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Profit</p>
-                <h4 className="text-base font-extrabold text-white font-mono mt-0.5">$136,755.77</h4>
+                <h4 className="text-base font-extrabold text-white font-mono mt-0.5">{metrics.totalProfit}</h4>
               </div>
               <span className="text-[10px] text-[#ccff00] font-semibold bg-[#ccff00]/10 border border-[#ccff00]/20 px-2 py-0.5 rounded-full">
-                Live Wave
+                Live Wave ({timeRange})
               </span>
             </div>
 
