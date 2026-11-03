@@ -35,4 +35,3 @@ def get_sql_db():
         yield db
     finally:
         db.close()
-

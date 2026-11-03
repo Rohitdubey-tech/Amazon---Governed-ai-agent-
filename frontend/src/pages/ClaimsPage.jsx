@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
-import { useAuth } from '../context/AuthContext';
 import { Badge } from '../components/common/Badge';
 import { motion } from 'framer-motion';
 import { Search, Plus, Eye, Receipt } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 export function ClaimsPage() {
-  const { user } = useAuth();
-  const role = user?.role || 'EMPLOYEE';
   const [claims, setClaims] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -43,31 +40,14 @@ export function ClaimsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1A2230] pb-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
-              role === 'EMPLOYEE'
-                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                : role === 'MANAGER'
-                ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                : 'bg-[#ccff00]/15 text-[#ccff00] border-[#ccff00]/40'
-            }`}>
-              {role === 'EMPLOYEE' ? 'EMPLOYEE VIEW' : role === 'MANAGER' ? 'MANAGER TEAM VIEW' : 'ADMIN LEDGER'}
-            </span>
-          </div>
           <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <span>
-              {role === 'EMPLOYEE' ? 'My Expense Claims' : role === 'MANAGER' ? 'Team Expense Claims' : 'Enterprise Expense Claims Ledger'}
-            </span>
+            <span>Simulated Expense Claims</span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#18202D] text-slate-300 border border-[#232D40]">
               {claims.length} Records
             </span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            {role === 'EMPLOYEE'
-              ? 'Track your submitted corporate reimbursement requests, receipt attachments, and approval progress.'
-              : role === 'MANAGER'
-              ? 'Review and monitor expense claims submitted across your engineering direct reports.'
-              : 'Complete ledger of all simulated business expense claims governed by deterministic policy rules.'}
+            Simulated business expense claims governed by deterministic policy rules. No real financial transfers occur.
           </p>
         </div>
         <Link to="/workspace">
