@@ -138,36 +138,14 @@ export function DashboardPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 my-2">
-            {/* Donut Chart with interactive number display on hover */}
-            <div className="relative w-44 h-44 shrink-0 flex items-center justify-center">
+            {/* Donut Chart with dedicated, clash-free center readout */}
+            <div className="relative w-48 h-48 shrink-0 flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const d = payload[0].payload;
-                        return (
-                          <div className="bg-[#0B0F17] border border-[#232D40] p-2.5 rounded-xl shadow-2xl text-xs font-sans">
-                            <div className="flex items-center gap-1.5 font-bold text-white">
-                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                              <span>{d.name}</span>
-                            </div>
-                            <div className="text-sm font-extrabold font-mono text-[#ccff00] mt-1">
-                              ${d.value.toLocaleString()}
-                            </div>
-                            <div className="text-[10px] text-slate-400 mt-0.5">
-                              {((d.value / 71020) * 100).toFixed(1)}% of total sales
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
                   <Pie
                     data={donutData}
-                    innerRadius={50}
-                    outerRadius={hoveredSlice ? 70 : 66}
+                    innerRadius={54}
+                    outerRadius={hoveredSlice ? 74 : 70}
                     paddingAngle={4}
                     dataKey="value"
                     stroke="#121620"
@@ -179,39 +157,54 @@ export function DashboardPage() {
                       <Cell
                         key={`cell-${index}`}
                         fill={entry.color}
-                        opacity={hoveredSlice ? (hoveredSlice.name === entry.name ? 1 : 0.45) : 1}
+                        opacity={hoveredSlice ? (hoveredSlice.name === entry.name ? 1 : 0.35) : 1}
                         style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
                       />
                     ))}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center select-none">
-                {hoveredSlice ? (
-                  <motion.div
-                    key={hoveredSlice.name}
-                    initial={{ scale: 0.85, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex flex-col items-center"
-                  >
-                    <span className="text-lg font-extrabold text-[#ccff00] font-mono leading-tight">
-                      ${hoveredSlice.value.toLocaleString()}
-                    </span>
-                    <span className="text-[10px] font-bold text-white uppercase tracking-wider truncate max-w-[85px]">
-                      {hoveredSlice.name}
-                    </span>
-                  </motion.div>
-                ) : (
-                  <>
-                    <span className="text-xl font-extrabold text-white">102k</span>
-                    <span className="text-[10px] text-slate-400">Weekly Visits</span>
-                  </>
-                )}
+
+              {/* Dedicated center readout - completely eliminates tooltip clash */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center select-none p-2">
+                <AnimatePresence mode="wait">
+                  {hoveredSlice ? (
+                    <motion.div
+                      key={hoveredSlice.name}
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.9, opacity: 0 }}
+                      transition={{ duration: 0.12 }}
+                      className="flex flex-col items-center justify-center"
+                    >
+                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider truncate max-w-[90px]">
+                        {hoveredSlice.name}
+                      </span>
+                      <span className="text-xl font-black text-[#ccff00] font-mono leading-tight tracking-tight my-0.5">
+                        ${hoveredSlice.value.toLocaleString()}
+                      </span>
+                      <span className="text-[10px] font-mono font-semibold text-emerald-400">
+                        {((hoveredSlice.value / 71020) * 100).toFixed(1)}%
+                      </span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="default"
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.9, opacity: 0 }}
+                      transition={{ duration: 0.12 }}
+                      className="flex flex-col items-center justify-center"
+                    >
+                      <span className="text-2xl font-black text-white leading-none tracking-tight">102k</span>
+                      <span className="text-[10px] text-slate-400 font-medium mt-1">Weekly Visits</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
-            {/* Right side breakdown with highlight badge */}
+            {/* Right side breakdown with interactive synchronization */}
             <div className="flex-1 w-full space-y-3">
               <motion.div 
                 whileHover={{ scale: 1.02 }}
@@ -219,11 +212,11 @@ export function DashboardPage() {
                 className="inline-flex items-center gap-2 p-2 rounded-xl bg-[#18202D] border border-[#253043] text-xs cursor-pointer"
               >
                 <div className="w-2 h-2 rounded-full bg-[#ccff00] animate-neon-pulse" />
-                <span className="text-slate-400 text-[11px]">Number of Sales</span>
+                <span className="text-slate-400 text-[11px]">Number of Sales:</span>
                 <span className="font-bold text-white font-mono">$71,020</span>
               </motion.div>
 
-              <div className="grid grid-cols-2 gap-y-2.5 gap-x-4 text-xs pt-1">
+              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
                 {donutData.map((item) => {
                   const isHovered = hoveredSlice?.name === item.name;
                   return (
@@ -231,15 +224,24 @@ export function DashboardPage() {
                       key={item.name}
                       onMouseEnter={() => setHoveredSlice(item)}
                       onMouseLeave={() => setHoveredSlice(null)}
-                      className={`p-1.5 -m-1.5 rounded-lg transition-colors cursor-pointer ${
-                        isHovered ? 'bg-[#18202D] ring-1 ring-[#ccff00]/30' : ''
+                      className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                        isHovered 
+                          ? 'bg-[#18202D] border-[#ccff00]/40 shadow-sm' 
+                          : 'bg-[#0E121B] border-[#1A2230] hover:border-[#2A3548]'
                       }`}
                     >
-                      <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className={isHovered ? 'text-white font-bold' : ''}>{item.name}</span>
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                          <span className={`text-[11px] truncate ${isHovered ? 'text-white font-bold' : 'text-slate-400'}`}>
+                            {item.name}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {((item.value / 71020) * 100).toFixed(0)}%
+                        </span>
                       </div>
-                      <div className={`font-mono mt-0.5 ${isHovered ? 'font-black text-[#ccff00]' : 'font-bold text-white'}`}>
+                      <div className={`font-mono text-xs ${isHovered ? 'font-black text-[#ccff00]' : 'font-bold text-white'}`}>
                         ${item.value.toLocaleString()}
                       </div>
                     </div>
