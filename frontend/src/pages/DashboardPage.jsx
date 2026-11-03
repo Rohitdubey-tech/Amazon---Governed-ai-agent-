@@ -15,6 +15,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  Tooltip,
   ResponsiveContainer,
   AreaChart,
   Area
@@ -26,6 +27,7 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('Today');
   const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
+  const [hoveredSlice, setHoveredSlice] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -46,10 +48,10 @@ export function DashboardPage() {
 
   // Donut chart data matching the screenshot circular chart
   const donutData = [
-    { name: 'Travel', value: 55640, color: '#ccff00' },
-    { name: 'Hardware', value: 11420, color: '#22c55e' },
-    { name: 'Services', value: 1840, color: '#38bdf8' },
-    { name: 'Meals', value: 2120, color: '#e2e8f0' }
+    { name: 'Electronic', value: 55640, color: '#ccff00' },
+    { name: 'Furniture', value: 11420, color: '#22c55e' },
+    { name: 'Clothes', value: 1840, color: '#38bdf8' },
+    { name: 'Shoes', value: 2120, color: '#e2e8f0' }
   ];
 
   // Wave area chart data matching the glowing green wave in the screenshot
@@ -136,28 +138,76 @@ export function DashboardPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 my-2">
-            {/* Donut Chart with center label */}
+            {/* Donut Chart with interactive number display on hover */}
             <div className="relative w-44 h-44 shrink-0 flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const d = payload[0].payload;
+                        return (
+                          <div className="bg-[#0B0F17] border border-[#232D40] p-2.5 rounded-xl shadow-2xl text-xs font-sans">
+                            <div className="flex items-center gap-1.5 font-bold text-white">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                              <span>{d.name}</span>
+                            </div>
+                            <div className="text-sm font-extrabold font-mono text-[#ccff00] mt-1">
+                              ${d.value.toLocaleString()}
+                            </div>
+                            <div className="text-[10px] text-slate-400 mt-0.5">
+                              {((d.value / 71020) * 100).toFixed(1)}% of total sales
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
                   <Pie
                     data={donutData}
-                    innerRadius={52}
-                    outerRadius={68}
+                    innerRadius={50}
+                    outerRadius={hoveredSlice ? 70 : 66}
                     paddingAngle={4}
                     dataKey="value"
                     stroke="#121620"
                     strokeWidth={3}
+                    onMouseEnter={(_, index) => setHoveredSlice(donutData[index])}
+                    onMouseLeave={() => setHoveredSlice(null)}
                   >
                     {donutData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.color}
+                        opacity={hoveredSlice ? (hoveredSlice.name === entry.name ? 1 : 0.45) : 1}
+                        style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                      />
                     ))}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                <span className="text-xl font-extrabold text-white">102k</span>
-                <span className="text-[10px] text-slate-400">Weekly Visits</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center select-none">
+                {hoveredSlice ? (
+                  <motion.div
+                    key={hoveredSlice.name}
+                    initial={{ scale: 0.85, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex flex-col items-center"
+                  >
+                    <span className="text-lg font-extrabold text-[#ccff00] font-mono leading-tight">
+                      ${hoveredSlice.value.toLocaleString()}
+                    </span>
+                    <span className="text-[10px] font-bold text-white uppercase tracking-wider truncate max-w-[85px]">
+                      {hoveredSlice.name}
+                    </span>
+                  </motion.div>
+                ) : (
+                  <>
+                    <span className="text-xl font-extrabold text-white">102k</span>
+                    <span className="text-[10px] text-slate-400">Weekly Visits</span>
+                  </>
+                )}
               </div>
             </div>
 
@@ -165,6 +215,7 @@ export function DashboardPage() {
             <div className="flex-1 w-full space-y-3">
               <motion.div 
                 whileHover={{ scale: 1.02 }}
+                onClick={() => setHoveredSlice(null)}
                 className="inline-flex items-center gap-2 p-2 rounded-xl bg-[#18202D] border border-[#253043] text-xs cursor-pointer"
               >
                 <div className="w-2 h-2 rounded-full bg-[#ccff00] animate-neon-pulse" />
@@ -173,37 +224,27 @@ export function DashboardPage() {
               </motion.div>
 
               <div className="grid grid-cols-2 gap-y-2.5 gap-x-4 text-xs pt-1">
-                <div>
-                  <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                    <span className="w-2 h-2 rounded-full bg-[#ccff00]" />
-                    <span>Electronic</span>
-                  </div>
-                  <div className="font-bold text-white font-mono mt-0.5">$55,640</div>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                    <span className="w-2 h-2 rounded-full bg-[#22c55e]" />
-                    <span>Furniture</span>
-                  </div>
-                  <div className="font-bold text-white font-mono mt-0.5">$11,420</div>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                    <span className="w-2 h-2 rounded-full bg-[#38bdf8]" />
-                    <span>Clothes</span>
-                  </div>
-                  <div className="font-bold text-white font-mono mt-0.5">$1,840</div>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                    <span className="w-2 h-2 rounded-full bg-slate-300" />
-                    <span>Shoes</span>
-                  </div>
-                  <div className="font-bold text-white font-mono mt-0.5">$2,120</div>
-                </div>
+                {donutData.map((item) => {
+                  const isHovered = hoveredSlice?.name === item.name;
+                  return (
+                    <div
+                      key={item.name}
+                      onMouseEnter={() => setHoveredSlice(item)}
+                      onMouseLeave={() => setHoveredSlice(null)}
+                      className={`p-1.5 -m-1.5 rounded-lg transition-colors cursor-pointer ${
+                        isHovered ? 'bg-[#18202D] ring-1 ring-[#ccff00]/30' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span className={isHovered ? 'text-white font-bold' : ''}>{item.name}</span>
+                      </div>
+                      <div className={`font-mono mt-0.5 ${isHovered ? 'font-black text-[#ccff00]' : 'font-bold text-white'}`}>
+                        ${item.value.toLocaleString()}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

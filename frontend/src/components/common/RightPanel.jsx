@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Bell,
   CheckCircle2,
@@ -17,6 +17,7 @@ import { motion } from 'framer-motion';
 
 export function RightPanel() {
   const { user, switchRole } = useAuth();
+  const navigate = useNavigate();
   const [recentLogs, setRecentLogs] = useState([]);
   const [summary, setSummary] = useState(null);
 
@@ -139,7 +140,13 @@ export function RightPanel() {
       <div className="flex-1">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Enterprise Authorities</h4>
-          <MoreVertical className="w-3.5 h-3.5 text-slate-500" />
+          <button
+            type="button"
+            onClick={() => navigate('/admin/users')}
+            className="text-[10px] text-[#ccff00] hover:underline font-mono cursor-pointer"
+          >
+            Directory
+          </button>
         </div>
         <div className="space-y-1.5">
           {managers.map((mgr, i) => {

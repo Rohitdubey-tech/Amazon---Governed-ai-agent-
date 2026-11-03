@@ -11,6 +11,7 @@
     background-color: #0B0F17;
     color: #F1F5F9;
     overflow-x: hidden;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 
   code, pre {
@@ -73,4 +74,103 @@
 
 .btn-interactive:active {
   transform: translateY(0.5px) scale(0.98);
+}
+
+/* =========================================================================
+   LIGHT THEME OVERRIDES (Clean Enterprise Mode)
+   ========================================================================= */
+body.light-theme {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+body.light-theme ::-webkit-scrollbar-track {
+  background: #F1F5F9 !important;
+}
+
+body.light-theme ::-webkit-scrollbar-thumb {
+  background: #CBD5E1 !important;
+}
+
+/* Main canvases & containers */
+body.light-theme [class*="bg-[#0B0F17]"],
+body.light-theme [class*="bg-[#070A0F]"] {
+  background-color: #F8FAFC !important;
+}
+
+/* Sidebars, Headers & Right Panel */
+body.light-theme aside,
+body.light-theme header,
+body.light-theme [class*="bg-[#0A0D14]"],
+body.light-theme [class*="bg-[#0E121B]"] {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+}
+
+/* Content Cards & Modals */
+body.light-theme [class*="bg-[#121620]"],
+body.light-theme [class*="bg-[#151C28]"],
+body.light-theme [class*="bg-[#141A26]"],
+body.light-theme [class*="bg-[#111622]"],
+body.light-theme [class*="bg-[#161D2B]"],
+body.light-theme [class*="bg-[#18202D]"],
+body.light-theme [class*="bg-[#131824]"] {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+}
+
+/* Secondary insets & inputs */
+body.light-theme [class*="bg-[#0A0E16]"],
+body.light-theme [class*="bg-[#0B0F17]"],
+body.light-theme [class*="bg-[#080B10]"] {
+  background-color: #F1F5F9 !important;
+  border-color: #CBD5E1 !important;
+}
+
+/* Border colors */
+body.light-theme [class*="border-[#1A2230]"],
+body.light-theme [class*="border-[#1B212D]"],
+body.light-theme [class*="border-[#1E2433]"],
+body.light-theme [class*="border-[#1E2536]"],
+body.light-theme [class*="border-[#1D2330]"],
+body.light-theme [class*="border-[#232D3F]"],
+body.light-theme [class*="border-[#232D40]"],
+body.light-theme [class*="border-[#26334A]"],
+body.light-theme [class*="border-[#171D28]"] {
+  border-color: #E2E8F0 !important;
+}
+
+/* Typography */
+body.light-theme .text-white,
+body.light-theme [class*="text-white"] {
+  color: #0F172A !important;
+}
+
+body.light-theme [class*="text-slate-100"] {
+  color: #1E293B !important;
+}
+
+body.light-theme [class*="text-slate-200"],
+body.light-theme [class*="text-slate-300"] {
+  color: #334155 !important;
+}
+
+body.light-theme [class*="text-slate-400"] {
+  color: #64748B !important;
+}
+
+body.light-theme [class*="text-slate-500"] {
+  color: #94A3B8 !important;
+}
+
+/* Text inputs & textareas */
+body.light-theme input,
+body.light-theme textarea {
+  color: #0F172A !important;
+}
+
+/* Code & Pre */
+body.light-theme pre,
+body.light-theme code {
+  color: #047857 !important;
 }

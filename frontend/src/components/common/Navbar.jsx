@@ -1,19 +1,23 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Home,
   Moon,
+  Sun,
   RotateCcw,
   ChevronRight,
   LogOut,
-  Sparkles
+  Search,
+  UserCheck
 } from 'lucide-react';
 import { api } from '../../services/api';
 
-export function Navbar() {
+export function Navbar({ onOpenSearch }) {
   const { user, switchRole, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -43,7 +47,7 @@ export function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-[#0A0D14]/90 backdrop-blur-md border-b border-[#1B212D] px-6 py-3.5">
+    <header className="sticky top-0 z-30 bg-[#0A0D14]/90 backdrop-blur-md border-b border-[#1B212D] px-6 py-3.5 transition-colors">
       <div className="flex items-center justify-between">
         {/* Left: Breadcrumbs */}
         <div className="flex items-center gap-2.5 text-xs text-slate-400">
@@ -55,14 +59,38 @@ export function Navbar() {
           <span className="text-white font-semibold">{getBreadcrumb()}</span>
         </div>
 
-        {/* Right: Actions & Role Switcher */}
+        {/* Right: Actions, Search, Persona Switcher & Theme Button */}
         <div className="flex items-center gap-3">
-          {/* Trust Boundary Pill */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-[#111722] border border-[#1E2738] text-[11px] text-slate-300">
-            <span className="w-2 h-2 rounded-full bg-[#ccff00] animate-neon-pulse" />
-            <span className="text-slate-400">Gateway:</span>
-            <span className="font-bold text-[#ccff00]">Deterministic Enforced</span>
-          </div>
+          {/* Quick Search Shortcut */}
+          {onOpenSearch && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onOpenSearch}
+              className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#111722] border border-[#1E2738] text-xs text-slate-400 hover:text-white hover:border-[#ccff00]/40 transition-colors cursor-pointer"
+              title="Global Search (⌘K)"
+            >
+              <Search className="w-3.5 h-3.5 text-[#ccff00]" />
+              <span className="text-[11px]">Search...</span>
+              <kbd className="px-1.5 py-0.2 rounded text-[10px] font-mono text-slate-400 bg-[#171E2A] border border-[#232D3F]">
+                ⌘K
+              </kbd>
+            </motion.button>
+          )}
+
+          {/* User Profile Pill - Tapping opens Profile */}
+          <motion.div
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate('/profile')}
+            className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-[#111722] border border-[#1E2738] hover:border-[#ccff00]/40 transition-colors cursor-pointer text-xs"
+            title="View User Profile of the Person"
+          >
+            <div className="w-5 h-5 rounded-full bg-[#ccff00] text-slate-950 font-black text-[10px] flex items-center justify-center">
+              {user?.avatar || 'PS'}
+            </div>
+            <span className="hidden sm:inline font-bold text-slate-200">{user?.name}</span>
+          </motion.div>
 
           {/* Quick Demo Role Switcher Capsule with Framer Motion spring */}
           <div className="flex items-center bg-[#111622] p-1 rounded-xl border border-[#1E2536] text-[11px]">
@@ -90,8 +118,9 @@ export function Navbar() {
 
           <div className="h-5 w-px bg-[#1D2433]" />
 
-          {/* Icon buttons with micro-rotations */}
+          {/* Icon buttons with theme toggle */}
           <div className="flex items-center gap-1.5 text-slate-400">
+            {/* Factory State Reset */}
             <motion.button
               whileHover={{ rotate: 180 }}
               whileTap={{ scale: 0.85 }}
@@ -102,13 +131,20 @@ export function Navbar() {
             >
               <RotateCcw className="w-4 h-4" />
             </motion.button>
+
+            {/* Real Functioning Theme Change Button */}
             <motion.button
-              whileHover={{ scale: 1.15, rotate: 15 }}
+              whileHover={{ scale: 1.15, rotate: 20 }}
               whileTap={{ scale: 0.85 }}
-              className="p-1.5 rounded-lg hover:bg-[#141A26] text-[#ccff00] transition-colors cursor-pointer"
-              title="Dark Mode Active"
+              onClick={toggleTheme}
+              className="p-1.5 rounded-lg hover:bg-[#141A26] transition-colors cursor-pointer"
+              title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
             >
-              <Moon className="w-4 h-4" />
+              {theme === 'dark' ? (
+                <Moon className="w-4 h-4 text-[#ccff00]" />
+              ) : (
+                <Sun className="w-4 h-4 text-amber-500" />
+              )}
             </motion.button>
 
             <div className="h-4 w-px bg-[#1D2433] mx-1" />

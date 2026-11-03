@@ -18,7 +18,7 @@ import {
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
-export function Sidebar() {
+export function Sidebar({ onOpenSearch }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [pendingCount, setPendingCount] = useState(0);
@@ -64,20 +64,24 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 bg-[#0A0D14] text-slate-400 flex flex-col shrink-0 min-h-screen border-r border-[#1B212D]">
-      {/* 1. User profile banner with smooth hover */}
-      <div className="p-4 flex items-center justify-between border-b border-[#171D28]">
+      {/* 1. User profile banner - Tapping opens Profile page */}
+      <div 
+        onClick={() => navigate('/profile')}
+        className="p-4 flex items-center justify-between border-b border-[#171D28] cursor-pointer hover:bg-[#121622] transition-colors group select-none"
+        title="View Profile of the Person & RBAC Permissions"
+      >
         <div className="flex items-center gap-3">
           <div className="relative">
             <motion.div 
               whileHover={{ scale: 1.08 }}
-              className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-500 to-lime-400 text-slate-950 font-extrabold text-xs flex items-center justify-center ring-2 ring-[#ccff00]/30 cursor-pointer"
+              className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-500 to-lime-400 text-slate-950 font-extrabold text-xs flex items-center justify-center ring-2 ring-[#ccff00]/30 group-hover:ring-[#ccff00] transition-all"
             >
               {user?.avatar || 'PS'}
             </motion.div>
             <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#ccff00] ring-2 ring-[#0A0D14] animate-neon-pulse" />
           </div>
           <div>
-            <div className="text-xs font-bold text-slate-100 leading-tight truncate max-w-[110px]">
+            <div className="text-xs font-bold text-slate-100 group-hover:text-[#ccff00] transition-colors leading-tight truncate max-w-[110px]">
               {user?.name || 'Priya Sharma'}
             </div>
             <div className="text-[10px] text-slate-500 font-medium">
@@ -90,7 +94,10 @@ export function Sidebar() {
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
-          onClick={handleLogout}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleLogout();
+          }}
           className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
           title="Sign Out"
         >
@@ -98,17 +105,22 @@ export function Sidebar() {
         </motion.button>
       </div>
 
-      {/* 2. Search input */}
+      {/* 2. Search input - Tapping opens real functioning Search Modal */}
       <div className="p-3">
-        <div className="relative">
-          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+        <div
+          onClick={onOpenSearch}
+          className="relative cursor-pointer group"
+          title="Search claims, policies, pages (⌘K)"
+        >
+          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 group-hover:text-[#ccff00] transition-colors" />
           <input
             type="text"
             placeholder="Search..."
             readOnly
-            className="w-full bg-[#121620] text-xs text-slate-300 placeholder-slate-500 pl-8 pr-8 py-2 rounded-xl border border-[#1E2433] focus:outline-none"
+            onClick={onOpenSearch}
+            className="w-full bg-[#121620] text-xs text-slate-300 placeholder-slate-500 pl-8 pr-8 py-2 rounded-xl border border-[#1E2433] group-hover:border-[#ccff00]/50 focus:outline-none cursor-pointer transition-colors"
           />
-          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded text-[10px] font-mono text-slate-500 bg-[#1A202C] border border-[#262F40]">
+          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded text-[10px] font-mono text-slate-500 bg-[#1A202C] border border-[#262F40] group-hover:border-[#ccff00]/40 group-hover:text-[#ccff00] transition-colors">
             ⌘K
           </span>
         </div>
@@ -213,7 +225,7 @@ export function Sidebar() {
             whileHover={{ x: 3 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleLogout}
-            className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all group"
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all group cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
               <LogOut className="w-4 h-4 text-slate-500 group-hover:text-rose-400 transition-colors" />
@@ -227,6 +239,7 @@ export function Sidebar() {
       {/* 4. Bottom brand logo */}
       <motion.div 
         whileHover={{ scale: 1.02 }}
+        onClick={() => navigate('/dashboard')}
         className="p-4 border-t border-[#171D28] flex items-center gap-2.5 cursor-pointer"
       >
         <div className="w-7 h-7 rounded-lg bg-[#ccff00] flex items-center justify-center text-slate-950 font-black text-xs shadow-sm shadow-[#ccff00]/20">
