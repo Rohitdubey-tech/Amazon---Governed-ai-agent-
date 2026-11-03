@@ -1,0 +1,122 @@
+import React from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import {
+  Home,
+  Moon,
+  RotateCcw,
+  ChevronRight,
+  LogOut
+} from 'lucide-react';
+
+export function Navbar() {
+  const { user, switchRole, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  const getBreadcrumb = () => {
+    const path = location.pathname;
+    if (path.includes('workspace')) return 'AI Agent Workspace';
+    if (path.includes('claims')) return 'Expense Claims';
+    if (path.includes('approvals')) return 'Human Approvals Queue';
+    if (path.includes('policies')) return 'Policy Management';
+    if (path.includes('audit')) return 'Security Audit Trail';
+    if (path.includes('evaluation')) return '50-Benchmark Evaluation';
+    if (path.includes('users')) return 'User Directory';
+    if (path.includes('profile')) return 'Profile & RBAC';
+    return 'Overview';
+  };
+
+  return (
+    <header className="sticky top-0 z-30 bg-[#0A0D14]/90 backdrop-blur-md border-b border-[#1B212D] px-6 py-3.5">
+      <div className="flex items-center justify-between">
+        {/* Left: Breadcrumbs */}
+        <div className="flex items-center gap-2.5 text-xs text-slate-400">
+          <div className="p-1 rounded-md bg-[#131824] text-slate-400">
+            <Home className="w-3.5 h-3.5" />
+          </div>
+          <span className="text-slate-500">Dashboards</span>
+          <ChevronRight className="w-3 h-3 text-slate-600" />
+          <span className="text-white font-semibold">{getBreadcrumb()}</span>
+        </div>
+
+        {/* Right: Actions & Role Switcher */}
+        <div className="flex items-center gap-3">
+          {/* Trust Boundary Pill */}
+          <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-[#111722] border border-[#1E2738] text-[11px] text-slate-300">
+            <span className="w-2 h-2 rounded-full bg-[#ccff00] animate-neon-pulse" />
+            <span className="text-slate-400">Gateway:</span>
+            <span className="font-bold text-[#ccff00]">Deterministic Enforced</span>
+          </div>
+
+          {/* Quick Demo Role Switcher Capsule with Framer Motion spring */}
+          <div className="flex items-center bg-[#111622] p-1 rounded-xl border border-[#1E2536] text-[11px]">
+            <span className="text-slate-500 font-medium px-2 hidden sm:inline text-[10px]">Persona:</span>
+            {(['EMPLOYEE', 'MANAGER', 'ADMIN']).map((r) => {
+              const active = user?.role === r;
+              return (
+                <motion.button
+                  key={r}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => switchRole(r)}
+                  className={`px-2.5 py-0.5 rounded-lg font-bold transition-colors ${
+                    active
+                      ? 'bg-[#ccff00] text-slate-950 shadow-md shadow-[#ccff00]/20'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-[#182030]'
+                  }`}
+                  title={`Switch to ${r}`}
+                >
+                  {r}
+                </motion.button>
+              );
+            })}
+          </div>
+
+          <div className="h-5 w-px bg-[#1D2433]" />
+
+          {/* Icon buttons with micro-rotations */}
+          <div className="flex items-center gap-1.5 text-slate-400">
+            <motion.button
+              whileHover={{ rotate: 180 }}
+              whileTap={{ scale: 0.85 }}
+              transition={{ duration: 0.3 }}
+              onClick={() => window.location.reload()}
+              className="p-1.5 rounded-lg hover:bg-[#141A26] hover:text-slate-200 transition-colors"
+              title="Refresh State"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.15, rotate: 15 }}
+              whileTap={{ scale: 0.85 }}
+              className="p-1.5 rounded-lg hover:bg-[#141A26] text-[#ccff00] transition-colors"
+              title="Dark Mode Active"
+            >
+              <Moon className="w-4 h-4" />
+            </motion.button>
+
+            <div className="h-4 w-px bg-[#1D2433] mx-1" />
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-white/5 hover:border-rose-500/20 transition-all cursor-pointer"
+              title="Sign Out of Account"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <span className="hidden md:inline text-[11px]">Logout</span>
+            </motion.button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
