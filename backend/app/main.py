@@ -46,7 +46,7 @@ def health_check():
         "status": "healthy",
         "service": settings.APP_NAME,
         "environment": settings.APP_ENV,
-        "database": "connected" if db_manager.is_atlas else "in_memory_ready"
+        "database": f"connected ({settings.MONGODB_DATABASE})" if db_manager.is_connected else "in_memory_ready"
     }
 
 @app.get("/ready", tags=["Health"])
