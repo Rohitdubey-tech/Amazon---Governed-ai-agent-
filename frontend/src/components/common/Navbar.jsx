@@ -49,7 +49,7 @@ export function Navbar({ onOpenSearch }) {
   return (
     <header className="sticky top-0 z-30 bg-[#0A0D14]/90 backdrop-blur-md border-b border-[#1B212D] px-6 py-3.5 transition-colors">
       <div className="flex items-center justify-between">
-        {/* Left: Breadcrumbs */}
+        {/* Left: Breadcrumbs & Active Portal Indicator */}
         <div className="flex items-center gap-2.5 text-xs text-slate-400">
           <Link to="/dashboard" className="p-1 rounded-md bg-[#131824] text-slate-400 hover:text-white transition-colors">
             <Home className="w-3.5 h-3.5" />
@@ -57,6 +57,16 @@ export function Navbar({ onOpenSearch }) {
           <span className="text-slate-500">Dashboards</span>
           <ChevronRight className="w-3 h-3 text-slate-600" />
           <span className="text-white font-semibold">{getBreadcrumb()}</span>
+          <span className="text-slate-600">/</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider border ${
+            user?.role === 'EMPLOYEE'
+              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+              : user?.role === 'MANAGER'
+              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+              : 'bg-[#ccff00]/15 text-[#ccff00] border-[#ccff00]/40'
+          }`}>
+            {user?.role === 'EMPLOYEE' ? 'EMPLOYEE PORTAL' : user?.role === 'MANAGER' ? 'MANAGER PORTAL' : 'ADMIN CONSOLE'}
+          </span>
         </div>
 
         {/* Right: Actions, Search, Persona Switcher & Theme Button */}

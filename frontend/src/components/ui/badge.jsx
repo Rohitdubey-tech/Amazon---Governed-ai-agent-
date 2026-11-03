@@ -25,3 +25,4 @@ export const Badge = ({ className, variant = "default", children, ...props }) =>
     </span>
   );
 };
+

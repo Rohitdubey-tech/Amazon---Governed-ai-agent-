@@ -7,16 +7,29 @@ import {
   MoreVertical,
   ChevronDown,
   ArrowUpRight,
-  Star,
   ShieldCheck,
   Download,
   RefreshCw,
   ExternalLink,
   FileText,
+  Sparkles,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Receipt,
+  UserCheck,
+  Shield,
   Layers,
-  Sparkles
+  ArrowRight,
+  Send,
+  Lock,
+  ThumbsUp,
+  ThumbsDown,
+  Copy,
+  Check
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
   PieChart,
@@ -30,19 +43,31 @@ import {
 } from 'recharts';
 
 export function DashboardPage() {
+  const { user, switchRole } = useAuth();
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const waveColor = isLight ? '#16a34a' : '#ccff00';
+  const navigate = useNavigate();
+
+  const role = user?.role || 'EMPLOYEE';
 
   const [summary, setSummary] = useState(null);
-  const [recentClaims, setRecentClaims] = useState([]);
+  const [claims, setClaims] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Admin View State
   const [timeRange, setTimeRange] = useState('Today');
   const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
   const [hoveredSlice, setHoveredSlice] = useState(null);
-  const [activeMenu, setActiveMenu] = useState(null); // 'sales' | 'customers' | 'plan' | null
-  const [refreshing, setRefreshing] = useState(false);
-  const navigate = useNavigate();
+  const [activeMenu, setActiveMenu] = useState(null);
+
+  // Employee Quick Prompt State
+  const [quickPrompt, setQuickPrompt] = useState('');
+
+  // Manager Quick Action State
+  const [actionSuccess, setActionSuccess] = useState(null);
 
   // Close menus on outside click or Escape key
   useEffect(() => {
@@ -64,17 +89,54 @@ export function DashboardPage() {
     };
   }, []);
 
+  const loadAllData = async () => {
+    try {
+      const [sum, claimsList, pendingList] = await Promise.all([
+        api.dashboard.getSummary().catch(() => null),
+        api.claims.list().catch(() => []),
+        api.approvals.listPending().catch(() => [])
+      ]);
+      setSummary(sum);
+      setClaims(claimsList);
+      setPendingApprovals(pendingList);
+    } catch (err) {
+      console.error("Dashboard loading error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAllData();
+  }, [role]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
+    await loadAllData();
+    setTimeout(() => setRefreshing(false), 500);
+  };
+
+  const handleManagerApprove = async (approvalId) => {
     try {
-      const sum = await api.dashboard.getSummary();
-      const claims = await api.claims.list();
-      setSummary(sum);
-      setRecentClaims(claims.slice(0, 4));
+      await api.approvals.approve(approvalId, "Approved via Manager Dashboard quick action");
+      setActionSuccess(`Authorization granted for claim.`);
+      await loadAllData();
+      setTimeout(() => setActionSuccess(null), 3500);
     } catch (e) {
-      console.error(e);
-    } finally {
-      setTimeout(() => setRefreshing(false), 500);
+      alert(e.message);
+    }
+  };
+
+  const handleManagerReject = async (approvalId) => {
+    const reason = prompt("Enter rejection reason for employee:", "Amount requires itemized tax breakdown");
+    if (!reason) return;
+    try {
+      await api.approvals.reject(approvalId, reason);
+      setActionSuccess(`Claim rejected with feedback sent to employee.`);
+      await loadAllData();
+      setTimeout(() => setActionSuccess(null), 3500);
+    } catch (e) {
+      alert(e.message);
     }
   };
 
@@ -93,23 +155,7 @@ export function DashboardPage() {
     URL.revokeObjectURL(url);
   };
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const sum = await api.dashboard.getSummary();
-        const claims = await api.claims.list();
-        setSummary(sum);
-        setRecentClaims(claims.slice(0, 4));
-      } catch (err) {
-        console.error("Dashboard error:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadData();
-  }, []);
-
-  // Dynamic datasets reacting seamlessly to Today / This Week / This Quarter selection
+  // Dynamic datasets for Admin Console
   const timeRangeData = {
     'Today': {
       metrics: {
@@ -128,10 +174,7 @@ export function DashboardPage() {
         totalProfit: '$18,420.50'
       },
       totalSales: 11520,
-      centerVisits: {
-        value: '14k',
-        label: 'Daily Visits'
-      },
+      centerVisits: { value: '14k', label: 'Daily Visits' },
       donutData: [
         { name: 'Electronic', value: 8240, color: '#ccff00' },
         { name: 'Furniture', value: 2180, color: '#22c55e' },
@@ -171,10 +214,7 @@ export function DashboardPage() {
         totalProfit: '$136,755.77'
       },
       totalSales: 71020,
-      centerVisits: {
-        value: '102k',
-        label: 'Weekly Visits'
-      },
+      centerVisits: { value: '102k', label: 'Weekly Visits' },
       donutData: [
         { name: 'Electronic', value: 55640, color: '#ccff00' },
         { name: 'Furniture', value: 11420, color: '#22c55e' },
@@ -213,387 +253,659 @@ export function DashboardPage() {
         totalProfit: '$742,910.15'
       },
       totalSales: 348650,
-      centerVisits: {
-        value: '680k',
-        label: 'Quarterly Visits'
-      },
+      centerVisits: { value: '680k', label: 'Quarterly Visits' },
       donutData: [
-        { name: 'Electronic', value: 242100, color: '#ccff00' },
-        { name: 'Furniture', value: 64800, color: '#22c55e' },
-        { name: 'Clothes', value: 24500, color: '#38bdf8' },
-        { name: 'Shoes', value: 17250, color: '#e2e8f0' }
+        { name: 'Electronic', value: 245000, color: '#ccff00' },
+        { name: 'Furniture', value: 68200, color: '#22c55e' },
+        { name: 'Clothes', value: 21450, color: '#38bdf8' },
+        { name: 'Shoes', value: 14000, color: '#e2e8f0' }
       ],
       waveData: [
-        { time: 'W1', val: 48 },
-        { time: 'W2', val: 54 },
-        { time: 'W3', val: 62 },
-        { time: 'W4', val: 75 },
-        { time: 'W5', val: 82 },
-        { time: 'W6', val: 90 },
-        { time: 'W7', val: 110 },
-        { time: 'W8', val: 125 }
+        { time: 'W1', val: 120 },
+        { time: 'W3', val: 185 },
+        { time: 'W5', val: 240 },
+        { time: 'W7', val: 310 },
+        { time: 'W9', val: 420 },
+        { time: 'W11', val: 580 },
+        { time: 'W12', val: 742 }
       ],
       customerList: [
-        { name: 'Danny Liu', email: 'dannyliu@gmail.com', deals: '4,210', value: '$162,400', initials: 'DL', color: 'from-pink-500 to-rose-400' },
-        { name: 'Bella Deviani', email: 'belladeviani@gmail.com', deals: '3,890', value: '$128,650', initials: 'BD', color: 'from-amber-500 to-orange-400' },
-        { name: 'Darrell Steward', email: 'darrellsteward@gmail.com', deals: '3,410', value: '$114,800', initials: 'DS', color: 'from-emerald-500 to-teal-400' }
+        { name: 'Danny Liu', email: 'dannyliu@gmail.com', deals: '4,891', value: '$184,230', initials: 'DL', color: 'from-pink-500 to-rose-400' },
+        { name: 'Bella Deviani', email: 'belladeviani@gmail.com', deals: '3,412', value: '$142,500', initials: 'BD', color: 'from-amber-500 to-orange-400' },
+        { name: 'Darrell Steward', email: 'darrellsteward@gmail.com', deals: '2,980', value: '$118,200', initials: 'DS', color: 'from-emerald-500 to-teal-400' }
       ]
     }
   };
 
-  const currentData = timeRangeData[timeRange] || timeRangeData['Today'];
-  const { metrics, donutData, waveData, customerList, totalSales, centerVisits } = currentData;
-
-  const exportSalesCSV = () => {
-    const headers = ['Category', 'Sales Amount (USD)', 'Percentage of Total'];
-    const rows = donutData.map(d => [
-      d.name,
-      `$${d.value.toLocaleString()}`,
-      `${((d.value / totalSales) * 100).toFixed(1)}%`
-    ]);
-    exportCSV(`sales_overview_${timeRange.toLowerCase().replace(/\\s+/g, '_')}.csv`, headers, rows);
-  };
-
-  const exportCustomersCSV = () => {
-    const headers = ['Name', 'Email', 'Deals Completed', 'Total Deal Value'];
-    const rows = customerList.map(c => [c.name, c.email, c.deals, c.value]);
-    exportCSV(`customer_deals_${timeRange.toLowerCase().replace(/\\s+/g, '_')}.csv`, headers, rows);
-  };
+  const activeTimeData = timeRangeData[timeRange] || timeRangeData['This Week'];
 
   return (
     <div className="space-y-6">
-      {/* 1. Header with 'Overview' and interactive time selector */}
-      <div className="flex items-center justify-between relative">
-        <h1 className="text-xl font-bold text-white tracking-tight">Overview</h1>
-        <div className="relative" onClick={(e) => e.stopPropagation()}>
-          <motion.button 
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setTimeDropdownOpen(prev => !prev);
-            }}
-            aria-label="Select Overview Time Range"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#121620] border border-[#1E2433] text-xs font-semibold text-slate-300 hover:border-slate-700 transition-colors shadow-xs cursor-pointer select-none"
-          >
-            <span>{timeRange}</span>
-            <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-150 ${timeDropdownOpen ? 'rotate-180' : ''}`} />
-          </motion.button>
-          <AnimatePresence>
-            {timeDropdownOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -4, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -4, scale: 0.95 }}
-                transition={{ duration: 0.12 }}
-                onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 mt-1.5 w-36 bg-[#121620]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl py-1 z-50 text-xs"
-              >
-                {['Today', 'This Week', 'This Quarter'].map(t => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTimeRange(t);
-                      setHoveredSlice(null);
-                      setTimeDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 transition-colors cursor-pointer flex items-center justify-between ${
-                      timeRange === t ? 'text-[#ccff00] font-bold bg-[#1A2232]' : 'text-slate-300 hover:text-white hover:bg-[#161D2B]'
-                    }`}
-                  >
-                    <span>{t}</span>
-                    {timeRange === t && <span className="w-1.5 h-1.5 rounded-full bg-[#ccff00]" />}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* 2. Top Metric Cards Row (4 cards with subtle entrance) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Net Revenue"
-          value={`$${metrics.netRevenue.toLocaleString()}`}
-          trend={metrics.netRevenueTrend}
-        />
-        <StatCard
-          title="ARR"
-          value={`$${metrics.arr.toLocaleString()}`}
-          trend={metrics.arrTrend}
-        />
-        <StatCard
-          title="Quarterly Revenue Goal"
-          value={`${metrics.goalPercent}%`}
-          gaugePercent={metrics.goalPercent}
-          subtitle={metrics.goalSubtitle}
-        />
-        <StatCard
-          title="New Orders"
-          value={metrics.newOrders.toLocaleString()}
-          trend={metrics.newOrdersTrend}
-        />
-      </div>
-
-      {/* 3. Middle Row: Sales Overview Donut (left) + Mini Stats & Green Wave Chart (right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left: Donut Chart Card (7 cols) */}
-        <motion.div 
-          whileHover={{ borderColor: '#26334A' }}
-          className="lg:col-span-7 bg-[#121620] rounded-2xl p-5 border border-[#1E2433] flex flex-col justify-between transition-colors"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-bold text-white">Sales Overview</h3>
-            <div className="relative">
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveMenu(activeMenu === 'sales' ? null : 'sales');
-                }}
-                aria-label="Sales Overview actions"
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </motion.button>
-
-              <AnimatePresence>
-                {activeMenu === 'sales' && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                    transition={{ duration: 0.12 }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="absolute right-0 mt-1 w-52 rounded-xl bg-[#151C28]/95 backdrop-blur-xl border border-white/10 shadow-2xl py-1.5 z-40 text-xs text-slate-200"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveMenu(null);
-                        navigate('/claims');
-                      }}
-                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 hover:text-[#ccff00] transition-colors cursor-pointer"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                      <span>View Claims Breakdown</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveMenu(null);
-                        exportSalesCSV();
-                      }}
-                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 hover:text-[#ccff00] transition-colors cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Export Breakdown (CSV)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveMenu(null);
-                        handleRefresh();
-                      }}
-                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 hover:text-[#ccff00] transition-colors border-t border-white/5 cursor-pointer"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${refreshing ? 'animate-spin' : ''}`} />
-                      <span>Refresh Sales Metrics</span>
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 my-2">
-            {/* Donut Chart with dedicated, clash-free center readout */}
-            <div className="relative w-48 h-48 shrink-0 flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={donutData}
-                    innerRadius={54}
-                    outerRadius={hoveredSlice ? 74 : 70}
-                    paddingAngle={4}
-                    dataKey="value"
-                    stroke="#121620"
-                    strokeWidth={3}
-                    onMouseEnter={(_, index) => setHoveredSlice(donutData[index])}
-                    onMouseLeave={() => setHoveredSlice(null)}
-                  >
-                    {donutData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={entry.color}
-                        opacity={hoveredSlice ? (hoveredSlice.name === entry.name ? 1 : 0.35) : 1}
-                        style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
-                      />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-
-              {/* Dedicated center readout - completely eliminates tooltip clash */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center select-none p-2">
-                <AnimatePresence mode="wait">
-                  {hoveredSlice ? (
-                    <motion.div
-                      key={hoveredSlice.name}
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.9, opacity: 0 }}
-                      transition={{ duration: 0.12 }}
-                      className="flex flex-col items-center justify-center"
-                    >
-                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider truncate max-w-[90px]">
-                        {hoveredSlice.name}
-                      </span>
-                      <span className="text-xl font-black text-[#ccff00] font-mono leading-tight tracking-tight my-0.5">
-                        ${hoveredSlice.value.toLocaleString()}
-                      </span>
-                      <span className="text-[10px] font-mono font-semibold text-emerald-400">
-                        {((hoveredSlice.value / totalSales) * 100).toFixed(1)}%
-                      </span>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key={`default-${timeRange}`}
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.9, opacity: 0 }}
-                      transition={{ duration: 0.12 }}
-                      className="flex flex-col items-center justify-center"
-                    >
-                      <span className="text-2xl font-black text-white leading-none tracking-tight">{centerVisits.value}</span>
-                      <span className="text-[10px] text-slate-400 font-medium mt-1">{centerVisits.label}</span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-
-            {/* Right side breakdown with interactive synchronization */}
-            <div className="flex-1 w-full space-y-3">
-              <motion.div 
-                whileHover={{ scale: 1.02 }}
-                onClick={() => setHoveredSlice(null)}
-                className="inline-flex items-center gap-2 p-2 rounded-xl bg-[#18202D] border border-[#253043] text-xs cursor-pointer"
-              >
-                <div className="w-2 h-2 rounded-full bg-[#ccff00] animate-neon-pulse" />
-                <span className="text-slate-400 text-[11px]">Number of Sales:</span>
-                <span className="font-bold text-white font-mono">${totalSales.toLocaleString()}</span>
-              </motion.div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                {donutData.map((item) => {
-                  const isHovered = hoveredSlice?.name === item.name;
-                  return (
-                    <div
-                      key={item.name}
-                      onMouseEnter={() => setHoveredSlice(item)}
-                      onMouseLeave={() => setHoveredSlice(null)}
-                      className={`p-2 rounded-xl border transition-all cursor-pointer ${
-                        isHovered 
-                          ? 'bg-[#18202D] border-[#ccff00]/40 shadow-sm' 
-                          : 'bg-[#0E121B] border-[#1A2230] hover:border-[#2A3548]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <div className="flex items-center gap-1.5 truncate">
-                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                          <span className={`text-[11px] truncate ${isHovered ? 'text-white font-bold' : 'text-slate-400'}`}>
-                            {item.name}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          {((item.value / totalSales) * 100).toFixed(0)}%
-                        </span>
-                      </div>
-                      <div className={`font-mono text-xs ${isHovered ? 'font-black text-[#ccff00]' : 'font-bold text-white'}`}>
-                        ${item.value.toLocaleString()}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Right: Stacked mini stats + glowing green wave area chart (5 cols) */}
-        <div className="lg:col-span-5 space-y-4 flex flex-col justify-between">
-          {/* Top mini row */}
-          <div className="grid grid-cols-2 gap-4">
-            <motion.div 
-              whileHover={{ y: -2, borderColor: '#2E3B52' }}
-              className="bg-[#121620] rounded-2xl p-4 border border-[#1E2433] transition-colors"
-            >
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                <span className="w-2 h-2 rounded-full bg-[#ccff00]" />
-                <span>New customers</span>
-              </div>
-              <div className="text-xl font-extrabold text-white mt-1">{metrics.newCustomers}</div>
-              <div className="text-[10px] text-slate-500 mt-0.5">{metrics.newCustomersLabel}</div>
-            </motion.div>
-
-            <motion.div 
-              whileHover={{ y: -2, borderColor: '#2E3B52' }}
-              className="bg-[#121620] rounded-2xl p-4 border border-[#1E2433] transition-colors"
-            >
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                <span>Gross profit</span>
-              </div>
-              <div className="text-xl font-extrabold text-white mt-1">{metrics.grossProfit}</div>
-              <div className="text-[10px] text-[#ccff00] mt-0.5 font-semibold">{metrics.grossProfitTrend}</div>
-            </motion.div>
-          </div>
-
-          {/* Bottom glowing green wave chart */}
-          <motion.div 
-            whileHover={{ borderColor: '#2E3B52' }}
-            className="bg-[#121620] rounded-2xl p-4 border border-[#1E2433] flex-1 flex flex-col justify-between transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Profit</p>
-                <h4 className="text-base font-extrabold text-white font-mono mt-0.5">{metrics.totalProfit}</h4>
-              </div>
-              <span className="text-[10px] text-[#ccff00] font-semibold bg-[#ccff00]/10 border border-[#ccff00]/20 px-2 py-0.5 rounded-full">
-                Live Wave ({timeRange})
+      {/* 1. TOP PORTAL SWITCHER & IDENTITY BANNER */}
+      <div className="bg-gradient-to-r from-[#0E131F] via-[#101726] to-[#0A0E17] p-5 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
+          <div>
+            <div className="flex items-center gap-2.5 mb-1.5">
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-black tracking-wider border ${
+                role === 'EMPLOYEE'
+                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                  : role === 'MANAGER'
+                  ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                  : 'bg-[#ccff00]/15 text-[#ccff00] border-[#ccff00]/40'
+              }`}>
+                {role === 'EMPLOYEE' && '👤 EMPLOYEE REIMBURSEMENT PORTAL'}
+                {role === 'MANAGER' && '👔 MANAGER GOVERNANCE & APPROVALS PORTAL'}
+                {role === 'ADMIN' && '🛡️ EXECUTIVE ADMIN & SECURITY SUITE'}
+              </span>
+              <span className="text-xs text-slate-500 font-mono">
+                Active User: <strong className="text-white">{user?.name}</strong>
               </span>
             </div>
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              {role === 'EMPLOYEE' && `Welcome back, ${user?.name || 'Priya'} 👋`}
+              {role === 'MANAGER' && `Manager Governance Hub • ${user?.name || 'Vikram'} 👔`}
+              {role === 'ADMIN' && `Executive Security & Financial Console • ${user?.name || 'Ananya'} 🛡️`}
+            </h1>
+            <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+              {role === 'EMPLOYEE' && 'Submit personal corporate expense claims, upload receipts, review real-time AI agent verification, and monitor your ₹2,000 corporate autonomy limits.'}
+              {role === 'MANAGER' && 'Review and authorize team claims exceeding employee autonomy limits, inspect cryptographic action hashes, and prevent unauthorized disbursements.'}
+              {role === 'ADMIN' && 'Enterprise-wide financial telemetry, policy engine administration, zero unauthorized execution guarantees, and immutable SHA-256 cryptographic audit logs.'}
+            </p>
+          </div>
 
-            <div className="h-24 w-full mt-2">
+          {/* Quick 1-Click Persona Switcher */}
+          <div className="flex flex-col items-start lg:items-end gap-2 bg-[#080B11]/80 p-3 rounded-2xl border border-white/5">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+              Test Portal Persona:
+            </span>
+            <div className="flex items-center gap-1.5">
+              {[
+                { r: 'EMPLOYEE', label: '👤 Employee (Priya)', color: 'hover:border-emerald-500/50' },
+                { r: 'MANAGER', label: '👔 Manager (Vikram)', color: 'hover:border-amber-500/50' },
+                { r: 'ADMIN', label: '🛡️ Admin (Ananya)', color: 'hover:border-[#ccff00]/50' }
+              ].map((p) => {
+                const active = role === p.r;
+                return (
+                  <motion.button
+                    key={p.r}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => switchRole(p.r)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                      active
+                        ? p.r === 'EMPLOYEE'
+                          ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20'
+                          : p.r === 'MANAGER'
+                          ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/20'
+                          : 'bg-[#ccff00] text-slate-950 border-[#ccff00] shadow-md shadow-[#ccff00]/20'
+                        : 'bg-[#121620] text-slate-300 border-white/10 hover:text-white ' + p.color
+                    }`}
+                  >
+                    {p.label}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Action notification banner */}
+        {actionSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-3 p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2"
+          >
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>{actionSuccess}</span>
+          </motion.div>
+        )}
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2. ROLE VIEW A: EMPLOYEE PORTAL VIEW                                      */}
+      {/* ========================================================================= */}
+      {role === 'EMPLOYEE' && (
+        <div className="space-y-6">
+          {/* Employee KPI Telemetry Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="My Submitted Claims"
+              value="₹18,700"
+              trend="3 Claims total"
+              trendUp={true}
+              subtitle="All time corporate expenses"
+              icon={Receipt}
+            />
+            <StatCard
+              title="Reimbursed & Disbursed"
+              value="₹4,500"
+              trend="Paid out (IndiGo)"
+              trendUp={true}
+              subtitle="Direct deposit to payroll"
+              icon={CheckCircle2}
+            />
+            <StatCard
+              title="Pending Manager Review"
+              value="₹14,200"
+              trend="1 Claim (Apple Reseller)"
+              trendUp={false}
+              subtitle="Waiting for Manager sign-off"
+              icon={Clock}
+            />
+            <StatCard
+              title="Your Autonomy Limit"
+              value="₹2,000"
+              trend="Auto-approved instantly"
+              trendUp={true}
+              subtitle="Receipt proof mandatory"
+              icon={ShieldCheck}
+            />
+          </div>
+
+          {/* Quick AI Reimbursement Submission Launcher */}
+          <div className="bg-[#0E131F] p-5 rounded-3xl border border-white/10 shadow-xl">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#ccff00]" />
+                  <span>Submit Reimbursement with Governed AI Agent</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Type your expense details or attach a receipt. The 4-agent pipeline parses, checks policy limits, and evaluates automatically.
+                </p>
+              </div>
+              <Link to="/workspace">
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="px-4 py-2 rounded-xl bg-[#ccff00] text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-[#ccff00]/15 cursor-pointer"
+                >
+                  <span>Open Full AI Workspace</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </motion.button>
+              </Link>
+            </div>
+
+            {/* Interactive Prompt launcher */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                placeholder="e.g., Claim flight reimbursement for IndiGo Airlines ₹4,500 with receipt..."
+                value={quickPrompt}
+                onChange={(e) => setQuickPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && quickPrompt) {
+                    navigate(`/workspace?prompt=${encodeURIComponent(quickPrompt)}`);
+                  }
+                }}
+                className="flex-1 bg-[#090D15] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#ccff00]/60"
+              />
+              <button
+                onClick={() => navigate(`/workspace${quickPrompt ? `?prompt=${encodeURIComponent(quickPrompt)}` : ''}`)}
+                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5 text-[#ccff00]" />
+                <span>Launch Agent</span>
+              </button>
+            </div>
+
+            {/* Quick Prompt Suggestion Chips */}
+            <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-white/5">
+              <span className="text-[10px] text-slate-500 uppercase font-bold">Quick Demo Presets:</span>
+              {[
+                "Uber to client office ₹1,850 (Under ₹2,000 threshold)",
+                "Apple Monitor Dock ₹14,200 (Requires Manager Approval)",
+                "Team dinner at Trishna Seafood ₹3,400"
+              ].map((preset) => (
+                <button
+                  key={preset}
+                  onClick={() => navigate(`/workspace?prompt=${encodeURIComponent(preset)}`)}
+                  className="text-[11px] px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/5 transition-colors cursor-pointer"
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Two-Column Layout: My Recent Claims + Policy Rules */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left: My Claims Table (2 cols) */}
+            <div className="lg:col-span-2 bg-[#0E131F] rounded-3xl border border-white/10 p-5 shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Receipt className="w-4 h-4 text-emerald-400" />
+                    <span>My Recent Expense Claims</span>
+                  </h3>
+                  <p className="text-xs text-slate-400">Claims submitted under your profile ({user?.name || 'Priya Sharma'})</p>
+                </div>
+                <Link to="/claims" className="text-xs text-[#ccff00] hover:underline font-semibold flex items-center gap-1">
+                  <span>View All Claims</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-white/10 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                      <th className="py-2.5 px-3">Merchant</th>
+                      <th className="py-2.5 px-3">Category</th>
+                      <th className="py-2.5 px-3">Amount</th>
+                      <th className="py-2.5 px-3">Verdict</th>
+                      <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {claims.slice(0, 4).map((c) => (
+                      <tr key={c.id} className="hover:bg-white/5 transition-colors">
+                        <td className="py-3 px-3">
+                          <div className="font-bold text-white">{c.merchant}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">{c.id} • {c.date}</div>
+                        </td>
+                        <td className="py-3 px-3 text-slate-300">{c.category}</td>
+                        <td className="py-3 px-3 font-mono font-bold text-white">₹{Number(c.amount).toLocaleString()}</td>
+                        <td className="py-3 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            c.governance_decision === 'ALLOW'
+                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              : c.governance_decision === 'REQUIRE_APPROVAL'
+                              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                              : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                          }`}>
+                            {c.governance_decision}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="text-[11px] text-slate-300 font-medium">
+                            {c.status === 'PROCESSED' ? '✅ Paid' : c.status === 'WAITING_FOR_APPROVAL' ? '⏳ Under Review' : '❌ Blocked'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <Link
+                            to={`/claims/${c.id}`}
+                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 hover:text-white border border-white/10 text-[11px] font-semibold transition-colors"
+                          >
+                            Details
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Right: Policy Guidelines & Spending Breakdown (1 col) */}
+            <div className="space-y-4">
+              {/* Policy Rules applied to Employee */}
+              <div className="bg-[#0E131F] rounded-3xl border border-white/10 p-5 shadow-xl">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
+                  <ShieldCheck className="w-4 h-4 text-[#ccff00]" />
+                  <span>Rules Applied To You</span>
+                </h3>
+                <div className="space-y-2.5 text-xs">
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                    <div className="font-bold text-emerald-300">₹2,000 Auto-Approval Limit</div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">Claims ≤ ₹2,000 with receipt are approved without manager waiting time.</div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                    <div className="font-bold text-amber-300">Claims &gt; ₹2,000 Require Manager</div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">Automatically paused at fail-closed boundary until Vikram Malhotra reviews.</div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-900 border border-white/5">
+                    <div className="font-bold text-slate-200">Receipt Proof Mandatory</div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">Must attach valid PDF invoice or photo receipt.</div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                    <div className="font-bold text-rose-300">Prohibited Categories</div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">Gaming, Luxury, Personal, Crypto are strictly auto-blocked.</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Category spend bar */}
+              <div className="bg-[#0E131F] rounded-3xl border border-white/10 p-5 shadow-xl">
+                <h3 className="text-sm font-bold text-white mb-3">My Spend by Category</h3>
+                <div className="space-y-2">
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-slate-300">Hardware & Equipment</span>
+                      <span className="font-bold text-white">₹14,200 (76%)</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+                      <div className="h-full bg-amber-400 rounded-full" style={{ width: '76%' }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-slate-300">Travel</span>
+                      <span className="font-bold text-white">₹4,500 (24%)</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+                      <div className="h-full bg-emerald-400 rounded-full" style={{ width: '24%' }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 3. ROLE VIEW B: MANAGER GOVERNANCE & APPROVALS PORTAL                     */}
+      {/* ========================================================================= */}
+      {role === 'MANAGER' && (
+        <div className="space-y-6">
+          {/* Manager KPI Telemetry Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Pending Authorizations"
+              value={`${pendingApprovals.length} Claims`}
+              trend="Requires Manager Sign-off"
+              trendUp={false}
+              subtitle="Held at fail-closed boundary"
+              icon={AlertTriangle}
+            />
+            <StatCard
+              title="Capital Under Review"
+              value="₹18,700"
+              trend="Pending disbursement"
+              trendUp={false}
+              subtitle="Bound to SHA-256 action hash"
+              icon={Lock}
+            />
+            <StatCard
+              title="Team Disbursed This Month"
+              value="₹84,200"
+              trend="Within team budget"
+              trendUp={true}
+              subtitle="Engineering department"
+              icon={CheckCircle2}
+            />
+            <StatCard
+              title="Avg Approval Turnaround"
+              value="1.8 Hours"
+              trend="SLA compliance 98.4%"
+              trendUp={true}
+              subtitle="Fast-track decision SLA"
+              icon={Clock}
+            />
+          </div>
+
+          {/* Pending Authorizations Quick Action Queue */}
+          <div className="bg-[#0E131F] rounded-3xl border border-white/10 p-5 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <span>Pending Authorizations Action Queue</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    {pendingApprovals.length} Pending
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  1-Click authorization boundary. Actions are bound cryptographically to exact parameters.
+                </p>
+              </div>
+              <Link to="/approvals" className="text-xs text-[#ccff00] hover:underline font-bold flex items-center gap-1">
+                <span>Open Approvals Desk</span>
+                <ArrowUpRight className="w-3 h-3" />
+              </Link>
+            </div>
+
+            {pendingApprovals.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingApprovals.map((appr) => (
+                  <div key={appr.id} className="bg-[#121724] border border-amber-500/30 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-xs font-bold text-white">{appr.merchant || 'Apple Authorized Reseller'}</div>
+                        <div className="text-[11px] text-slate-400">
+                          Submitted by <strong className="text-slate-200">{appr.requester_name || 'Priya Sharma'}</strong>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-mono font-black text-amber-400">
+                          ₹{Number(appr.amount || 14200).toLocaleString()}
+                        </div>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                          {appr.category || 'Hardware'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Risk progress */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-slate-400">Risk Assessment Score</span>
+                        <span className="font-bold text-amber-400">{appr.risk_score || 72}/100 (Medium Risk)</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                        <div className="h-full bg-amber-400 rounded-full" style={{ width: `${appr.risk_score || 72}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Action Hash */}
+                    <div className="bg-[#090D15] p-2 rounded-lg font-mono text-[10px] text-slate-400 truncate flex items-center justify-between">
+                      <span className="truncate">Hash: {appr.action_hash || '3c2b8f810e19...'}</span>
+                      <span className="text-emerald-400 text-[9px] font-bold">Cryptographically Bound</span>
+                    </div>
+
+                    {/* Quick Approve / Reject Buttons */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => handleManagerApprove(appr.id)}
+                        className="flex-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-md shadow-emerald-500/15"
+                      >
+                        <ThumbsUp className="w-3.5 h-3.5" />
+                        <span>Authorize Claim</span>
+                      </button>
+                      <button
+                        onClick={() => handleManagerReject(appr.id)}
+                        className="flex-1 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <ThumbsDown className="w-3.5 h-3.5" />
+                        <span>Reject</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center bg-[#090D15] rounded-2xl border border-white/5">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                <div className="text-sm font-bold text-white">Queue Clear: All Claims Authorized</div>
+                <div className="text-xs text-slate-400 mt-1">There are no pending employee claims requiring manager sign-off right now.</div>
+              </div>
+            )}
+          </div>
+
+          {/* Two-Column Layout: Team Claims + Manager Authority Scope */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-[#0E131F] rounded-3xl border border-white/10 p-5 shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-amber-400" />
+                  <span>Team Claims History</span>
+                </h3>
+                <span className="text-xs text-slate-400">Engineering Direct Reports</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-white/10 text-slate-400 text-[10px] font-bold uppercase">
+                      <th className="py-2.5 px-3">Employee</th>
+                      <th className="py-2.5 px-3">Merchant</th>
+                      <th className="py-2.5 px-3">Amount</th>
+                      <th className="py-2.5 px-3">Risk</th>
+                      <th className="py-2.5 px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {claims.map((c) => (
+                      <tr key={c.id} className="hover:bg-white/5">
+                        <td className="py-3 px-3 font-medium text-white">{c.user_name || 'Priya Sharma'}</td>
+                        <td className="py-3 px-3 text-slate-300">{c.merchant}</td>
+                        <td className="py-3 px-3 font-mono font-bold text-white">₹{Number(c.amount).toLocaleString()}</td>
+                        <td className="py-3 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            c.risk_level === 'LOW' ? 'text-emerald-400 bg-emerald-500/10' :
+                            c.risk_level === 'MEDIUM' ? 'text-amber-400 bg-amber-500/10' :
+                            'text-rose-400 bg-rose-500/10'
+                          }`}>
+                            {c.risk_level || 'LOW'} ({c.risk_score || 18})
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <Badge variant={c.status === 'PROCESSED' ? 'success' : c.status === 'WAITING_FOR_APPROVAL' ? 'warning' : 'danger'}>
+                            {c.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Right: Manager Approval Scope Card */}
+            <div className="space-y-4">
+              <div className="bg-[#0E131F] rounded-3xl border border-white/10 p-5 shadow-xl">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
+                  <ShieldCheck className="w-4 h-4 text-amber-400" />
+                  <span>Manager Authority Scope</span>
+                </h3>
+                <div className="space-y-3 text-xs text-slate-300">
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                    <div className="font-bold text-amber-300">Authorization Limit: ₹25,000</div>
+                    <div className="text-[11px] text-slate-400 mt-1">
+                      You are authorized to approve team claims up to ₹25,000. Claims exceeding ₹25,000 automatically escalate to Executive Admin.
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-900 border border-white/5">
+                    <div className="font-bold text-white">Cryptographic Hash Guarantee</div>
+                    <div className="text-[11px] text-slate-400 mt-1">
+                      Every approval signs a canonical SHA-256 payload. The simulated tool cannot execute with any modified parameter.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 4. ROLE VIEW C: ADMIN EXECUTIVE CONSOLE                                   */}
+      {/* ========================================================================= */}
+      {role === 'ADMIN' && (
+        <div className="space-y-6">
+          {/* Executive Governance KPI Telemetry */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Net Managed Volume"
+              value={`$${activeTimeData.metrics.netRevenue.toLocaleString()}`}
+              trend={activeTimeData.metrics.netRevenueTrend}
+              trendUp={true}
+              subtitle="Enterprise AI operations"
+              icon={Receipt}
+            />
+            <StatCard
+              title="Zero Unauthorized Executions"
+              value="100% Guaranteed"
+              trend="Fail-Closed Boundary"
+              trendUp={true}
+              subtitle="0 unauthorized disbursements"
+              icon={ShieldCheck}
+            />
+            <StatCard
+              title="Active Security Policies"
+              value="4 Policies"
+              trend="100% Policy Compliance"
+              trendUp={true}
+              subtitle="Deterministic rule engine"
+              icon={Layers}
+            />
+            <StatCard
+              title="Cryptographic Log Blocks"
+              value="100% Chained"
+              trend="SHA-256 immutability"
+              trendUp={true}
+              subtitle="Tamper-evident audit trail"
+              icon={Lock}
+            />
+          </div>
+
+          {/* Spline Wave Chart: Total Profit & Spend */}
+          <div className="bg-[#0E131F] rounded-3xl border border-white/10 p-5 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>Enterprise Capital & Profit Telemetry</span>
+                  <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/30">
+                    {timeRange}
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-400">Total Profit: <strong className="text-white">{activeTimeData.metrics.totalProfit}</strong> ({activeTimeData.metrics.grossProfitTrend})</p>
+              </div>
+
+              {/* Timeframe dropdown */}
+              <div className="relative inline-block text-left">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTimeDropdownOpen(prev => !prev);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-[#141A26] border border-white/10 text-xs font-bold text-white flex items-center gap-2 hover:border-[#ccff00]/50 transition-colors cursor-pointer"
+                >
+                  <span>{timeRange}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+                {timeDropdownOpen && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute right-0 mt-2 w-36 rounded-xl bg-[#121620] border border-white/10 shadow-2xl py-1 z-30"
+                  >
+                    {['Today', 'This Week', 'This Quarter'].map((tf) => (
+                      <button
+                        key={tf}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTimeRange(tf);
+                          setTimeDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 text-xs font-semibold cursor-pointer transition-colors ${
+                          timeRange === tf ? 'bg-[#ccff00] text-slate-950 font-bold' : 'text-slate-300 hover:bg-white/10'
+                        }`}
+                      >
+                        {tf}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recharts Area Wave with numbers on every node */}
+            <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={waveData} margin={{ top: 18, right: 14, left: 14, bottom: 4 }}>
+                <AreaChart data={activeTimeData.waveData} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="glowWave" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={waveColor} stopOpacity={isLight ? 0.25 : 0.45} />
-                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0.0} />
+                    <linearGradient id="adminWaveGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={waveColor} stopOpacity={0.4} />
+                      <stop offset="95%" stopColor={waveColor} stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
                   <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        return (
-                          <div className="bg-[#0B0F17]/95 border border-[#ccff00]/30 rounded-lg px-2.5 py-1 shadow-xl text-[11px] font-mono backdrop-blur-md">
-                            <span className="text-slate-400">Node {data.time}: </span>
-                            <span className="text-[#ccff00] font-bold">${data.val}k profit</span>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
+                    contentStyle={{ backgroundColor: '#0B0F17', borderColor: '#232D3F', borderRadius: '12px', fontSize: '11px' }}
+                    labelStyle={{ color: '#94A3B8' }}
                   />
                   <Area
                     type="monotone"
@@ -601,271 +913,126 @@ export function DashboardPage() {
                     stroke={waveColor}
                     strokeWidth={2.5}
                     fillOpacity={1}
-                    fill="url(#glowWave)"
-                    dot={{
-                      r: 3.5,
-                      fill: waveColor,
-                      stroke: isLight ? '#ffffff' : '#0B0F17',
-                      strokeWidth: 2,
-                    }}
-                    activeDot={{
-                      r: 5.5,
-                      fill: '#ffffff',
-                      stroke: waveColor,
-                      strokeWidth: 2.5,
-                    }}
+                    fill="url(#adminWaveGradient)"
+                    dot={{ r: 3.5, fill: waveColor, stroke: '#0B0F17', strokeWidth: 1.5 }}
+                    activeDot={{ r: 6, fill: '#ffffff', stroke: waveColor, strokeWidth: 2 }}
                   >
                     <LabelList
                       dataKey="val"
                       position="top"
-                      offset={8}
-                      content={(props) => {
-                        const { x, y, value } = props;
-                        if (x == null || y == null) return null;
-                        return (
-                          <text
-                            x={x}
-                            y={y - 7}
-                            fill={waveColor}
-                            fontSize="10"
-                            fontWeight="800"
-                            textAnchor="middle"
-                            fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
-                            className="select-none pointer-events-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
-                          >
-                            {value}
-                          </text>
-                        );
-                      }}
+                      offset={10}
+                      fill={waveColor}
+                      fontSize={11}
+                      fontWeight="bold"
                     />
                   </Area>
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          </motion.div>
-        </div>
-      </div>
-
-      {/* 4. Bottom Row: Customer List (left) + Premium Plan Glowing Card (right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left: Customer List Table (7 cols) */}
-        <div className="lg:col-span-7 bg-[#121620] rounded-2xl p-5 border border-[#1E2433]">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-white">Customer list</h3>
-            <div className="relative">
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveMenu(activeMenu === 'customers' ? null : 'customers');
-                }}
-                aria-label="Customer list actions"
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </motion.button>
-
-              <AnimatePresence>
-                {activeMenu === 'customers' && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                    transition={{ duration: 0.12 }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="absolute right-0 mt-1 w-52 rounded-xl bg-[#151C28]/95 backdrop-blur-xl border border-white/10 shadow-2xl py-1.5 z-40 text-xs text-slate-200"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveMenu(null);
-                        navigate('/claims');
-                      }}
-                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 hover:text-[#ccff00] transition-colors cursor-pointer"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                      <span>View Customer Ledger</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveMenu(null);
-                        exportCustomersCSV();
-                      }}
-                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 hover:text-[#ccff00] transition-colors cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Export Deals (CSV)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveMenu(null);
-                        handleRefresh();
-                      }}
-                      className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-white/5 hover:text-[#ccff00] transition-colors border-t border-white/5 cursor-pointer"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${refreshing ? 'animate-spin' : ''}`} />
-                      <span>Refresh Customer List</span>
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-[#1E2433] text-slate-500 text-[10px] font-semibold uppercase tracking-wider">
-                  <th className="pb-3 font-semibold">Name</th>
-                  <th className="pb-3 font-semibold text-center">Deals</th>
-                  <th className="pb-3 font-semibold text-right">Total Deal Value</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#18202D]">
-                {customerList.map((cust) => (
-                  <motion.tr 
-                    key={cust.name}
-                    whileHover={{ backgroundColor: '#151C28' }}
-                    className="transition-colors cursor-pointer" 
-                    onClick={() => navigate('/claims')}
-                  >
-                    <td className="py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-7 h-7 rounded-full bg-gradient-to-tr ${cust.color} text-white font-bold text-[10px] flex items-center justify-center`}>
-                          {cust.initials}
-                        </div>
-                        <div>
-                          <div className="font-bold text-white">{cust.name}</div>
-                          <div className="text-[10px] text-slate-500">{cust.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 text-center text-slate-300 font-medium">{cust.deals}</td>
-                    <td className="py-3 text-right font-bold text-white font-mono">{cust.value}</td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Right: Premium Plan Glowing Card with Spring Buttons */}
-        <motion.div 
-          whileHover={{ scale: 1.01 }}
-          className="lg:col-span-5 rounded-2xl p-5 border border-emerald-500/30 bg-gradient-to-br from-[#0c2e17] via-[#0b1b14] to-[#0d141e] shadow-xl shadow-emerald-950/40 relative overflow-hidden flex flex-col justify-between"
-        >
-          <div className="absolute right-0 top-0 w-48 h-48 bg-[#ccff00]/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-[10px] font-bold text-[#ccff00]">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Premium Plan</span>
-              </div>
-              <div className="relative">
-                <motion.button
-                  type="button"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveMenu(activeMenu === 'plan' ? null : 'plan');
-                  }}
-                  aria-label="Plan actions"
-                  className="p-1 rounded-lg text-emerald-300 hover:text-white hover:bg-emerald-500/20 transition-colors cursor-pointer"
+          {/* Bottom Grid: Donut + Recent System Claims */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Donut Chart (1 col) */}
+            <div className="bg-[#0E131F] rounded-3xl border border-white/10 p-5 shadow-xl">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-bold text-white">Sales & Merchant Overview</h3>
+                <button
+                  onClick={() => exportCSV('sales_overview.csv', ['Category', 'Value'], activeTimeData.donutData.map(d => [d.name, d.value]))}
+                  className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white"
+                  title="Export Sales CSV"
                 >
-                  <MoreVertical className="w-4 h-4" />
-                </motion.button>
-
-                <AnimatePresence>
-                  {activeMenu === 'plan' && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                      transition={{ duration: 0.12 }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="absolute right-0 mt-1 w-52 rounded-xl bg-[#0B1E13]/95 backdrop-blur-xl border border-emerald-500/30 shadow-2xl py-1.5 z-40 text-xs text-slate-200"
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="h-52 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0B0F17', borderColor: '#232D3F', borderRadius: '12px', fontSize: '11px' }}
+                    />
+                    <Pie
+                      data={activeTimeData.donutData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={75}
+                      paddingAngle={3}
                     >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveMenu(null);
-                          navigate('/policies');
-                        }}
-                        className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-emerald-500/20 hover:text-[#ccff00] transition-colors cursor-pointer"
-                      >
-                        <Layers className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Configure Policy Scope</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveMenu(null);
-                          navigate('/workspace');
-                        }}
-                        className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-emerald-500/20 hover:text-[#ccff00] transition-colors cursor-pointer"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Launch Agent Workspace</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveMenu(null);
-                          navigate('/evaluations');
-                        }}
-                        className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-emerald-500/20 hover:text-[#ccff00] transition-colors border-t border-emerald-500/20 cursor-pointer"
-                      >
-                        <FileText className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Security Benchmarks</span>
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      {activeTimeData.donutData.map((entry, idx) => (
+                        <Cell key={`cell-${idx}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-white/5 text-xs">
+                {activeTimeData.donutData.map((d) => (
+                  <div key={d.name} className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                    <span className="text-slate-400 truncate">{d.name}</span>
+                    <span className="text-white font-bold ml-auto">${d.value.toLocaleString()}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="flex items-baseline gap-1 mt-2">
-              <span className="text-3xl font-extrabold text-white font-sans">$30</span>
-              <span className="text-xs text-emerald-300 font-medium">/ Per Month Per User</span>
+            {/* System Claims Table (2 cols) */}
+            <div className="lg:col-span-2 bg-[#0E131F] rounded-3xl border border-white/10 p-5 shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white">Enterprise Expense Ledger</h3>
+                  <p className="text-xs text-slate-400">All claims governed by active policies</p>
+                </div>
+                <Link to="/claims" className="text-xs text-[#ccff00] hover:underline font-bold flex items-center gap-1">
+                  <span>View All Claims</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </Link>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-white/10 text-slate-400 text-[10px] font-bold uppercase">
+                      <th className="py-2.5 px-3">Claim ID</th>
+                      <th className="py-2.5 px-3">Requester</th>
+                      <th className="py-2.5 px-3">Merchant</th>
+                      <th className="py-2.5 px-3">Amount</th>
+                      <th className="py-2.5 px-3">Verdict</th>
+                      <th className="py-2.5 px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {claims.map((c) => (
+                      <tr key={c.id} className="hover:bg-white/5">
+                        <td className="py-3 px-3 font-mono text-slate-400">{c.id}</td>
+                        <td className="py-3 px-3 text-white font-medium">{c.user_name}</td>
+                        <td className="py-3 px-3 text-slate-300">{c.merchant}</td>
+                        <td className="py-3 px-3 font-mono font-bold text-white">₹{Number(c.amount).toLocaleString()}</td>
+                        <td className="py-3 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            c.governance_decision === 'ALLOW' ? 'text-emerald-400 bg-emerald-500/10' :
+                            c.governance_decision === 'REQUIRE_APPROVAL' ? 'text-amber-400 bg-amber-500/10' :
+                            'text-rose-400 bg-rose-500/10'
+                          }`}>
+                            {c.governance_decision}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <Badge variant={c.status === 'PROCESSED' ? 'success' : c.status === 'WAITING_FOR_APPROVAL' ? 'warning' : 'danger'}>
+                            {c.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-
-            <p className="text-xs text-emerald-100/80 mt-3 leading-relaxed">
-              Improve your workplace, view and analyze your agent execution, policy violations and losses.
-            </p>
           </div>
-
-          <div className="flex items-center gap-2.5 mt-5">
-            <Link to="/workspace" className="flex-1">
-              <motion.button
-                whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(204,255,0,0.35)' }}
-                whileTap={{ scale: 0.97 }}
-                className="w-full py-2.5 px-4 rounded-xl bg-[#ccff00] text-slate-950 font-extrabold text-xs text-center transition-colors shadow-md shadow-[#ccff00]/20"
-              >
-                Get Started
-              </motion.button>
-            </Link>
-            <motion.button
-              whileHover={{ scale: 1.15, rotate: 20 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => navigate('/workspace')}
-              className="p-2.5 rounded-xl bg-emerald-900/40 border border-emerald-500/40 text-[#ccff00] hover:bg-emerald-800/50 transition-colors"
-              title="Launch Workspace"
-            >
-              <Star className="w-4 h-4 fill-[#ccff00]" />
-            </motion.button>
-          </div>
-        </motion.div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

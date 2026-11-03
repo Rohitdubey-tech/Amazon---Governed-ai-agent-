@@ -104,3 +104,4 @@ class AuditLogSQL(Base):
     status = Column(String(50), nullable=False)  # SUCCESS, BLOCKED, PENDING_REVIEW
     hash = Column(String(64), nullable=False)  # SHA-256 cryptographic proof
     previous_hash = Column(String(64), nullable=True)
+
