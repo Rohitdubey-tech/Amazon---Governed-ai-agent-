@@ -270,3 +270,4 @@ export function GlobalSearchModal({ isOpen, onClose, initialQuery = '' }) {
     </AnimatePresence>
   );
 }
+

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { StatCard } from '../components/common/StatCard';
 import { Badge } from '../components/common/Badge';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   MoreVertical,
   ChevronDown,
