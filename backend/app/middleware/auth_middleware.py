@@ -24,9 +24,21 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
     
     token = parts[1]
 
-    # Handle demo tokens (e.g. demo_jwt_token_...)
+    # Handle demo tokens with role awareness (e.g. demo_jwt_token_manager_...)
     if token.startswith("demo_jwt_token_"):
-        demo_user = user_repo.find_by_email("priya.sharma@shieldcorp.io")
+        parts_token = token.split("_")
+        role_hint = "employee"
+        for p in parts_token:
+            if p.lower() in ["employee", "manager", "admin"]:
+                role_hint = p.lower()
+                break
+        email_map = {
+            "employee": "priya.sharma@shieldcorp.io",
+            "manager": "vikram.malhotra@shieldcorp.io",
+            "admin": "ananya.sen@shieldcorp.io"
+        }
+        target_email = email_map.get(role_hint, "priya.sharma@shieldcorp.io")
+        demo_user = user_repo.find_by_email(target_email)
         if demo_user:
             return demo_user
 

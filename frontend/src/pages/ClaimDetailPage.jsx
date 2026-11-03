@@ -2,12 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { Badge } from '../components/common/Badge';
+import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   Receipt,
   ShieldCheck,
   Hash,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles,
+  ArrowRight,
+  ExternalLink,
+  ShieldAlert
 } from 'lucide-react';
 
 export function ClaimDetailPage() {
@@ -52,22 +57,48 @@ export function ClaimDetailPage() {
   return (
     <div className="space-y-6">
       {/* Back button & Title */}
-      <div className="flex items-center gap-3 border-b border-[#1A2230] pb-4">
-        <button
-          onClick={() => navigate('/claims')}
-          className="p-2 rounded-xl border border-[#1E2536] bg-[#121620] hover:bg-[#1A2230] text-slate-400 hover:text-white transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-extrabold text-white font-mono">{claim.id}</h1>
-            <Badge variant={claim.status}>{claim.status}</Badge>
-            <Badge variant={claim.governance_decision}>{claim.governance_decision}</Badge>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1A2230] pb-4">
+        <div className="flex items-center gap-3">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate('/claims')}
+            className="p-2 rounded-xl border border-[#1E2536] bg-[#121620] hover:bg-[#1A2230] text-slate-400 hover:text-white transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </motion.button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-extrabold text-white font-mono">{claim.id}</h1>
+              <Badge variant={claim.status}>{claim.status}</Badge>
+              <Badge variant={claim.governance_decision}>{claim.governance_decision}</Badge>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Submitted by {claim.user_name} on {new Date(claim.created_at).toLocaleDateString()}
+            </p>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Submitted by {claim.user_name} on {new Date(claim.created_at).toLocaleDateString()}
-          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {claim.task_id && (
+            <Link
+              to={`/workspace/${claim.task_id}`}
+              className="px-3.5 py-1.5 rounded-xl border border-[#242E40] bg-[#141A26] text-slate-200 hover:text-white font-bold text-xs flex items-center gap-1.5 transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#ccff00]" />
+              <span>Inspect 4-Agent Execution Plan</span>
+            </Link>
+          )}
+
+          {claim.status === 'WAITING_FOR_APPROVAL' && (
+            <Link
+              to="/approvals"
+              className="px-3.5 py-1.5 rounded-xl bg-[#ccff00] text-slate-950 font-extrabold text-xs flex items-center gap-1.5 hover:bg-[#bbf000] transition-colors"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-slate-950" />
+              <span>Go to Approvals Queue</span>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -120,7 +151,11 @@ export function ClaimDetailPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Duplicate Check:</span>
-              <span className="font-semibold text-[#ccff00]">0 Collisions in 90-Day Window</span>
+              <span className="font-semibold text-[#ccff00]">
+                {claim.governance_decision === 'DENY' && claim.block_reason?.includes('Duplicate') 
+                  ? 'COLLISION DETECTED' 
+                  : '0 Collisions in 90-Day Window'}
+              </span>
             </div>
           </div>
 

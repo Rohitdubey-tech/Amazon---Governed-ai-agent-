@@ -24,6 +24,8 @@ export function DashboardPage() {
   const [summary, setSummary] = useState(null);
   const [recentClaims, setRecentClaims] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('Today');
+  const [timeDropdownOpen, setTimeDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -64,17 +66,36 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Header with 'Overview' and animated 'Today' selector */}
-      <div className="flex items-center justify-between">
+      {/* 1. Header with 'Overview' and interactive time selector */}
+      <div className="flex items-center justify-between relative">
         <h1 className="text-xl font-bold text-white tracking-tight">Overview</h1>
-        <motion.button 
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#121620] border border-[#1E2433] text-xs font-semibold text-slate-300 hover:border-slate-700 transition-colors shadow-xs"
-        >
-          <span>Today</span>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
-        </motion.button>
+        <div className="relative">
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setTimeDropdownOpen(!timeDropdownOpen)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#121620] border border-[#1E2433] text-xs font-semibold text-slate-300 hover:border-slate-700 transition-colors shadow-xs cursor-pointer"
+          >
+            <span>{timeRange}</span>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+          </motion.button>
+          {timeDropdownOpen && (
+            <div className="absolute right-0 mt-1 w-32 bg-[#121620] border border-[#1E2536] rounded-xl shadow-xl py-1 z-20 text-xs">
+              {['Today', 'This Week', 'This Quarter'].map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => { setTimeRange(t); setTimeDropdownOpen(false); }}
+                  className={`w-full text-left px-3 py-1.5 transition-colors cursor-pointer ${
+                    timeRange === t ? 'text-[#ccff00] font-bold bg-[#1A2232]' : 'text-slate-300 hover:text-white hover:bg-[#161D2B]'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 2. Top Metric Cards Row (4 cards with subtle entrance) */}

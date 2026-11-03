@@ -1,14 +1,16 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Home,
   Moon,
   RotateCcw,
   ChevronRight,
-  LogOut
+  LogOut,
+  Sparkles
 } from 'lucide-react';
+import { api } from '../../services/api';
 
 export function Navbar() {
   const { user, switchRole, logout } = useAuth();
@@ -18,6 +20,13 @@ export function Navbar() {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const handleResetData = async () => {
+    if (window.confirm("Reset all claims, tasks, policies, and demo data to clean initial state?")) {
+      await api.resetStorage();
+      window.location.reload();
+    }
   };
 
   const getBreadcrumb = () => {
@@ -38,9 +47,9 @@ export function Navbar() {
       <div className="flex items-center justify-between">
         {/* Left: Breadcrumbs */}
         <div className="flex items-center gap-2.5 text-xs text-slate-400">
-          <div className="p-1 rounded-md bg-[#131824] text-slate-400">
+          <Link to="/dashboard" className="p-1 rounded-md bg-[#131824] text-slate-400 hover:text-white transition-colors">
             <Home className="w-3.5 h-3.5" />
-          </div>
+          </Link>
           <span className="text-slate-500">Dashboards</span>
           <ChevronRight className="w-3 h-3 text-slate-600" />
           <span className="text-white font-semibold">{getBreadcrumb()}</span>
@@ -66,7 +75,7 @@ export function Navbar() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => switchRole(r)}
-                  className={`px-2.5 py-0.5 rounded-lg font-bold transition-colors ${
+                  className={`px-2.5 py-0.5 rounded-lg font-bold transition-colors cursor-pointer ${
                     active
                       ? 'bg-[#ccff00] text-slate-950 shadow-md shadow-[#ccff00]/20'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-[#182030]'
@@ -87,16 +96,16 @@ export function Navbar() {
               whileHover={{ rotate: 180 }}
               whileTap={{ scale: 0.85 }}
               transition={{ duration: 0.3 }}
-              onClick={() => window.location.reload()}
-              className="p-1.5 rounded-lg hover:bg-[#141A26] hover:text-slate-200 transition-colors"
-              title="Refresh State"
+              onClick={handleResetData}
+              className="p-1.5 rounded-lg hover:bg-[#141A26] hover:text-slate-200 transition-colors cursor-pointer"
+              title="Reset Demo Data to Initial State"
             >
               <RotateCcw className="w-4 h-4" />
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.15, rotate: 15 }}
               whileTap={{ scale: 0.85 }}
-              className="p-1.5 rounded-lg hover:bg-[#141A26] text-[#ccff00] transition-colors"
+              className="p-1.5 rounded-lg hover:bg-[#141A26] text-[#ccff00] transition-colors cursor-pointer"
               title="Dark Mode Active"
             >
               <Moon className="w-4 h-4" />

@@ -1,45 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+import { Link } from 'react-router-dom';
 import {
   Bell,
   CheckCircle2,
-  AlertTriangle,
   ShieldCheck,
   Phone,
   MoreVertical,
   Activity,
   ArrowUpRight,
-  ShieldAlert
+  ShieldAlert,
+  Clock
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export function RightPanel() {
   const { user, switchRole } = useAuth();
   const [recentLogs, setRecentLogs] = useState([]);
-  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [summary, setSummary] = useState(null);
 
   useEffect(() => {
     async function loadPanelData() {
       try {
         const logs = await api.dashboard.getRecentActivity();
-        setRecentLogs(logs.slice(0, 4));
-        const pending = await api.approvals.listPending();
-        setPendingApprovals(pending);
+        setRecentLogs(logs.slice(0, 5));
+        const sum = await api.dashboard.getSummary();
+        setSummary(sum);
       } catch (e) {
         // quiet fallback
       }
     }
     loadPanelData();
+    const interval = setInterval(loadPanelData, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   const notifications = [
-    { title: "56 Tasks completed", time: "2m ago", icon: CheckCircle2, color: "text-[#ccff00]" },
-    { title: "132 Claims validated", time: "12m ago", icon: ShieldCheck, color: "text-[#ccff00]" },
-    { title: "Zero unauthorized actions", time: "1h ago", icon: ShieldAlert, color: "text-emerald-400" },
-    { title: "5 Unread gateway alerts", time: "Today, 11:30 PM", icon: Bell, color: "text-[#ccff00]" }
+    { title: `${summary?.totalTasks || 56} Tasks Orchestrated`, time: "Live sync", icon: CheckCircle2, color: "text-[#ccff00]" },
+    { title: `${summary?.totalSpendApproved ? '₹' + summary.totalSpendApproved.toLocaleString('en-IN') : '₹18,700'} Disbursed`, time: "Simulated ledger", icon: ShieldCheck, color: "text-[#ccff00]" },
+    { title: "0 Unauthorized Actions", time: "100% Fail-closed", icon: ShieldAlert, color: "text-emerald-400" },
+    { title: `${summary?.pendingApprovals || 0} Pending Manager Reviews`, time: "Threshold limit", icon: Bell, color: "text-amber-400" }
   ];
 
-  const activities = [
+  const defaultActivities = [
     { title: "Policy version bumped to v2.4", time: "24m ago", avatar: "AS", name: "Ananya Sen" },
     { title: "177 Rule checks verified", time: "45m ago", avatar: "VM", name: "Vikram Malhotra" },
     { title: "Receipt hash collision blocked", time: "1h ago", avatar: "GW", name: "Gateway Engine" },
@@ -47,11 +51,10 @@ export function RightPanel() {
   ];
 
   const managers = [
-    { name: "Vikram Malhotra", role: "Engineering Lead", avatar: "VM", active: false },
-    { name: "Ananya Sen", role: "InfoSec Administrator", avatar: "AS", active: false },
-    { name: "Nathaniel Donovan", role: "Compliance Officer", avatar: "ND", active: true, highlighted: true },
-    { name: "Elizabeth Wayne", role: "Finance Director", avatar: "EW", active: false },
-    { name: "Felicia Rospet", role: "Audit Supervisor", avatar: "FR", active: false }
+    { name: "Vikram Malhotra", role: "Engineering Lead", avatar: "VM", targetRole: "MANAGER", active: false },
+    { name: "Ananya Sen", role: "InfoSec Administrator", avatar: "AS", targetRole: "ADMIN", active: false },
+    { name: "Nathaniel Donovan", role: "Compliance Officer", avatar: "ND", targetRole: "MANAGER", active: true, highlighted: true },
+    { name: "Elizabeth Wayne", role: "Finance Director", avatar: "EW", targetRole: "MANAGER", active: false }
   ];
 
   return (
@@ -59,7 +62,7 @@ export function RightPanel() {
       {/* 1. Notifications Section */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Notifications</h4>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Governance Telemetry</h4>
           <span className="w-2 h-2 rounded-full bg-[#ccff00] animate-pulse" />
         </div>
         <div className="space-y-3">
@@ -82,41 +85,73 @@ export function RightPanel() {
 
       <div className="h-px bg-[#1D2330]" />
 
-      {/* 2. Activities Timeline Section */}
+      {/* 2. Live Activities Timeline Section */}
       <div>
-        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Activities</h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Live Audit Feed</h4>
+          <Link to="/audit-logs" className="text-[10px] text-[#ccff00] hover:underline font-mono">
+            View All
+          </Link>
+        </div>
         <div className="relative pl-3 space-y-4 border-l border-[#1F2634]">
-          {activities.map((act, i) => (
-            <div key={i} className="relative flex items-start gap-2.5 text-xs">
-              {/* Dot on line */}
-              <div className="absolute -left-[17px] top-1 w-2 h-2 rounded-full bg-[#ccff00] border-2 border-[#0E121B]" />
-              <div className="w-6 h-6 rounded-full bg-[#1C2333] border border-[#2B354A] flex items-center justify-center text-[10px] font-bold text-slate-200 shrink-0">
-                {act.avatar}
+          {recentLogs.length > 0 ? (
+            recentLogs.map((log) => {
+              const actorInitials = log.actor?.replace('user:', '').substring(0, 2).toUpperCase() || 'AG';
+              return (
+                <div key={log.id} className="relative flex items-start gap-2.5 text-xs">
+                  <div className="absolute -left-[17px] top-1 w-2 h-2 rounded-full bg-[#ccff00] border-2 border-[#0E121B]" />
+                  <div className="w-6 h-6 rounded-full bg-[#1C2333] border border-[#2B354A] flex items-center justify-center text-[10px] font-bold text-slate-200 shrink-0">
+                    {actorInitials}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-slate-300 leading-snug font-medium line-clamp-2">
+                      {log.details || log.action}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500">
+                      <span>{log.governance_decision}</span>
+                      <span>•</span>
+                      <span>{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            defaultActivities.map((act, i) => (
+              <div key={i} className="relative flex items-start gap-2.5 text-xs">
+                <div className="absolute -left-[17px] top-1 w-2 h-2 rounded-full bg-[#ccff00] border-2 border-[#0E121B]" />
+                <div className="w-6 h-6 rounded-full bg-[#1C2333] border border-[#2B354A] flex items-center justify-center text-[10px] font-bold text-slate-200 shrink-0">
+                  {act.avatar}
+                </div>
+                <div className="flex-1">
+                  <p className="text-slate-300 leading-snug">{act.title}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">{act.time}</p>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="text-slate-300 leading-snug">{act.title}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">{act.time}</p>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
       <div className="h-px bg-[#1D2330]" />
 
-      {/* 3. Contacts of your managers Section */}
+      {/* 3. Contacts & Persona Switchers */}
       <div className="flex-1">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Contacts of your managers</h4>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Enterprise Authorities</h4>
           <MoreVertical className="w-3.5 h-3.5 text-slate-500" />
         </div>
         <div className="space-y-1.5">
           {managers.map((mgr, i) => {
             if (mgr.highlighted) {
               return (
-                <div
+                <motion.div
                   key={i}
-                  className="flex items-center justify-between p-2 rounded-2xl bg-[#ccff00] text-slate-950 font-bold text-xs shadow-lg shadow-[#ccff00]/10 transition-transform hover:scale-[1.02]"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => switchRole(mgr.targetRole)}
+                  className="flex items-center justify-between p-2.5 rounded-2xl bg-[#ccff00] text-slate-950 font-bold text-xs shadow-lg shadow-[#ccff00]/10 cursor-pointer"
+                  title={`Click to adopt persona: ${mgr.name}`}
                 >
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-full bg-slate-900 text-[#ccff00] flex items-center justify-center text-[10px] font-extrabold">
@@ -130,14 +165,17 @@ export function RightPanel() {
                   <div className="p-1.5 rounded-full bg-slate-950 text-[#ccff00]">
                     <Phone className="w-3 h-3" />
                   </div>
-                </div>
+                </motion.div>
               );
             }
 
             return (
-              <div
+              <motion.div
                 key={i}
-                className="flex items-center justify-between p-2 rounded-xl hover:bg-[#141A26] transition-colors text-xs"
+                whileHover={{ backgroundColor: '#141A26', x: 2 }}
+                onClick={() => switchRole(mgr.targetRole)}
+                className="flex items-center justify-between p-2 rounded-xl transition-colors text-xs cursor-pointer"
+                title={`Click to switch to ${mgr.targetRole}`}
               >
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-full bg-[#18202E] border border-[#252F42] flex items-center justify-center text-[10px] font-bold text-slate-300">
@@ -148,8 +186,10 @@ export function RightPanel() {
                     <div className="text-[10px] text-slate-500">{mgr.role}</div>
                   </div>
                 </div>
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-              </div>
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#161D2A] text-slate-400 border border-[#222B3B]">
+                  {mgr.targetRole}
+                </span>
+              </motion.div>
             );
           })}
         </div>
@@ -157,4 +197,3 @@ export function RightPanel() {
     </aside>
   );
 }
-

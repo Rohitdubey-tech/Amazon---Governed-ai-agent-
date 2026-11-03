@@ -1,56 +1,58 @@
 import React from 'react';
-import { UploadCloud, FileText, CheckCircle2 } from 'lucide-react';
+import { UploadCloud, FileText, Sparkles, CheckCircle2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+export const SAMPLE_RECEIPTS = [
+  {
+    id: "sample_airindia",
+    fileName: "air_india_del_blr.pdf",
+    merchant: "Air India",
+    amount: 4200,
+    currency: "INR",
+    category: "Travel",
+    notes: "Valid claim under ₹5,000 threshold (Expect: ALLOW)"
+  },
+  {
+    id: "sample_apple",
+    fileName: "apple_dock_hardware.pdf",
+    merchant: "Apple Authorized Reseller",
+    amount: 14200,
+    currency: "INR",
+    category: "Hardware",
+    notes: "Exceeds ₹5,000 threshold (Expect: REQUIRE_APPROVAL)"
+  },
+  {
+    id: "sample_psn",
+    fileName: "psn_game_voucher.jpg",
+    merchant: "PlayStation Network Store",
+    amount: 3999,
+    currency: "INR",
+    category: "Personal / Gaming",
+    notes: "Prohibited category POL-CAT-02 (Expect: DENY)"
+  },
+  {
+    id: "sample_duplicate",
+    fileName: "indigo_flight_del_blr.pdf",
+    merchant: "IndiGo Airlines",
+    amount: 4500,
+    currency: "INR",
+    category: "Travel",
+    notes: "Duplicate receipt hash match with clm_8941 (Expect: DENY)"
+  }
+];
 
 export function ReceiptDropzone({ selectedReceipt, onSelectReceipt }) {
-  const sampleReceipts = [
-    {
-      id: "sample_indigo",
-      fileName: "indigo_flight_del_blr.pdf",
-      merchant: "IndiGo Airlines",
-      amount: 4500,
-      currency: "INR",
-      category: "Travel",
-      notes: "Valid claim under ₹5,000 threshold (Expect: ALLOW)"
-    },
-    {
-      id: "sample_apple",
-      fileName: "apple_dock_hardware.pdf",
-      merchant: "Apple Authorized Reseller",
-      amount: 14200,
-      currency: "INR",
-      category: "Hardware",
-      notes: "Exceeds ₹5,000 threshold (Expect: REQUIRE_APPROVAL)"
-    },
-    {
-      id: "sample_psn",
-      fileName: "psn_game_voucher.jpg",
-      merchant: "PlayStation Network Store",
-      amount: 3999,
-      currency: "INR",
-      category: "Personal / Gaming",
-      notes: "Prohibited category POL-CAT-02 (Expect: DENY)"
-    },
-    {
-      id: "sample_duplicate",
-      fileName: "indigo_flight_del_blr.pdf",
-      merchant: "IndiGo Airlines",
-      amount: 4500,
-      currency: "INR",
-      category: "Travel",
-      notes: "Duplicate receipt hash match with clm_8941 (Expect: DENY)"
-    }
-  ];
-
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
       onSelectReceipt({
         fileName: file.name,
-        merchant: "Synthetic Merchant Extracted",
-        amount: 4500,
+        merchant: "Corporate Vendor Partner",
+        amount: 4200,
         currency: "INR",
         category: "General Expense",
-        file
+        file,
+        notes: "Uploaded local receipt file"
       });
     }
   };
@@ -67,7 +69,11 @@ export function ReceiptDropzone({ selectedReceipt, onSelectReceipt }) {
       {/* Selected file preview or dropzone */}
       <div className="border border-dashed border-[#232C3E] rounded-2xl p-4 bg-[#0E121B] hover:border-[#344057] transition-colors">
         {selectedReceipt ? (
-          <div className="flex items-center justify-between bg-[#141A26] p-3 rounded-xl border border-[#232D3F]">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center justify-between bg-[#141A26] p-3 rounded-xl border border-[#232D3F]"
+          >
             <div className="flex items-center gap-3">
               <div className="p-2 bg-[#ccff00]/15 text-[#ccff00] rounded-lg">
                 <FileText className="w-5 h-5" />
@@ -82,11 +88,11 @@ export function ReceiptDropzone({ selectedReceipt, onSelectReceipt }) {
             <button
               type="button"
               onClick={() => onSelectReceipt(null)}
-              className="text-xs font-semibold text-rose-400 hover:text-rose-300 px-2 py-1"
+              className="text-xs font-semibold text-rose-400 hover:text-rose-300 px-2 py-1 cursor-pointer"
             >
               Remove
             </button>
-          </div>
+          </motion.div>
         ) : (
           <div className="text-center py-2">
             <UploadCloud className="w-8 h-8 text-slate-500 mx-auto mb-1" />
@@ -102,18 +108,20 @@ export function ReceiptDropzone({ selectedReceipt, onSelectReceipt }) {
 
       {/* Quick Demo Receipt Presets */}
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Preset Scenarios:</p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Preset Receipts:</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {sampleReceipts.map((preset) => {
+          {SAMPLE_RECEIPTS.map((preset) => {
             const isSelected = selectedReceipt?.fileName === preset.fileName && selectedReceipt?.amount === preset.amount && selectedReceipt?.category === preset.category;
             return (
-              <button
+              <motion.button
                 key={preset.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 type="button"
                 onClick={() => onSelectReceipt(preset)}
-                className={`text-left p-2.5 rounded-xl border text-xs transition-all ${
+                className={`text-left p-2.5 rounded-xl border text-xs transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-[#ccff00] bg-[#ccff00]/10 text-white'
+                    ? 'border-[#ccff00] bg-[#ccff00]/10 text-white shadow-xs'
                     : 'border-[#1E2536] bg-[#121620] hover:border-[#2D374D] text-slate-300'
                 }`}
               >
@@ -122,7 +130,7 @@ export function ReceiptDropzone({ selectedReceipt, onSelectReceipt }) {
                   <span className="text-[#ccff00] font-mono shrink-0">₹{preset.amount.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="text-[10px] text-slate-500 mt-0.5 truncate">{preset.notes}</div>
-              </button>
+              </motion.button>
             );
           })}
         </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Badge } from '../components/common/Badge';
@@ -8,11 +9,15 @@ import {
   CheckSquare,
   ShieldAlert,
   Hash,
-  CheckCircle2
+  CheckCircle2,
+  ExternalLink,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 
 export function ApprovalsPage() {
-  const { user } = useAuth();
+  const { user, switchRole } = useAuth();
+  const navigate = useNavigate();
   const [approvals, setApprovals] = useState([]);
   const [activeTab, setActiveTab] = useState('PENDING'); // PENDING | HISTORY
   const [loading, setLoading] = useState(true);
@@ -123,17 +128,26 @@ export function ApprovalsPage() {
         </div>
       </div>
 
-      {/* RBAC Notice if user is EMPLOYEE */}
+      {/* RBAC Notice if user is EMPLOYEE with 1-click Switch Persona */}
       {!isManagerOrAdmin && (
-        <div className="p-4 bg-amber-950/30 border border-amber-500/30 rounded-2xl flex items-start gap-3 text-xs text-amber-200">
-          <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold text-white">RBAC Permission Notice: </span>
-            <span>
-              Signed in as <strong>{user?.name} (EMPLOYEE)</strong>. Employees cannot approve governance requests.
-              To test the approval flow, switch persona to <strong>MANAGER</strong> in the top header.
-            </span>
+        <div className="p-4 bg-amber-950/30 border border-amber-500/30 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-200">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-white">RBAC Permission Notice: </span>
+              <span>
+                Signed in as <strong>{user?.name} (EMPLOYEE)</strong>. Employees cannot approve governance requests.
+              </span>
+            </div>
           </div>
+          <motion.button
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={() => switchRole('MANAGER')}
+            className="px-3.5 py-1.5 rounded-xl bg-[#ccff00] text-slate-950 font-bold text-xs shrink-0 shadow-sm cursor-pointer hover:bg-[#bbf000] transition-colors"
+          >
+            Switch to Manager Persona
+          </motion.button>
         </div>
       )}
 
@@ -155,9 +169,13 @@ export function ApprovalsPage() {
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs font-bold text-[#ccff00]">{appr.id}</span>
                       <Badge variant={appr.status}>{appr.status}</Badge>
-                      <span className="text-xs text-slate-500 font-mono">
-                        Claim Ref: <strong className="text-slate-300">{appr.claim_id}</strong>
-                      </span>
+                      <Link 
+                        to={`/claims/${appr.claim_id}`}
+                        className="text-xs text-slate-400 hover:text-[#ccff00] font-mono flex items-center gap-1 transition-colors"
+                      >
+                        <span>Claim: {appr.claim_id}</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </Link>
                     </div>
                     <h3 className="text-base font-bold text-white mt-1">
                       {appr.proposed_action?.merchant} • ₹{appr.proposed_action?.amount?.toLocaleString('en-IN')}{' '}
@@ -168,6 +186,14 @@ export function ApprovalsPage() {
                   </div>
 
                   <div className="flex items-center gap-3">
+                    <Link
+                      to={`/workspace/${appr.task_id}`}
+                      className="px-3 py-1.5 rounded-xl border border-[#232D40] bg-[#161D2B] text-slate-300 hover:text-white font-semibold text-xs flex items-center gap-1.5 transition-colors"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-[#ccff00]" />
+                      <span>Inspect Agent Plan</span>
+                    </Link>
+
                     {isPending ? (
                       <div className="flex items-center gap-2">
                         <motion.button

@@ -6,8 +6,8 @@ import {
   INITIAL_AUDIT_LOGS,
   INITIAL_TASKS,
   BENCHMARK_CASES
-} from './mockData';
-import { computeSHA256 } from './cryptoUtils';
+} from './mockData.js';
+import { computeSHA256 } from './cryptoUtils.js';
 
 // Local storage helper keys
 const STORAGE_KEYS = {
@@ -23,19 +23,19 @@ const STORAGE_KEYS = {
 
 function loadStorage(key, defaultVal) {
   try {
+    if (typeof localStorage === 'undefined') return defaultVal;
     const item = localStorage.getItem(key);
     return item ? JSON.parse(item) : defaultVal;
   } catch (e) {
-    console.error(`Error loading ${key} from storage:`, e);
     return defaultVal;
   }
 }
 
 function saveStorage(key, val) {
   try {
+    if (typeof localStorage === 'undefined') return;
     localStorage.setItem(key, JSON.stringify(val));
   } catch (e) {
-    console.error(`Error saving ${key} to storage:`, e);
   }
 }
 
@@ -54,11 +54,30 @@ let benchmarkCases = loadStorage(STORAGE_KEYS.EVALUATIONS, BENCHMARK_CASES);
 // Default current user is Priya Sharma (Employee), can be switched by role switcher
 let currentUser = loadStorage(STORAGE_KEYS.CURRENT_USER, INITIAL_USERS[0]);
 
-const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:8000/api/v1';
+const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || '/api/v1';
+
+function getToken() {
+  try {
+    return typeof localStorage !== 'undefined' ? localStorage.getItem('agentshield_jwt_token') : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function setToken(token) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      if (token) localStorage.setItem('agentshield_jwt_token', token);
+      else localStorage.removeItem('agentshield_jwt_token');
+    }
+  } catch (e) {}
+}
 
 async function fetchBackend(endpoint, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 1800);
   try {
-    const token = localStorage.getItem('agentshield_jwt_token');
+    const token = getToken();
     const headers = {
       'Content-Type': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
@@ -66,30 +85,62 @@ async function fetchBackend(endpoint, options = {}) {
     };
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
-      headers
+      headers,
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
     if (res.ok) {
       return await res.json();
     }
   } catch (e) {
     // Graceful offline fallback
+  } finally {
+    clearTimeout(timeoutId);
   }
   return null;
 }
 
 export const api = {
+  // Reset all state to clean initial fixtures
+  async resetStorage() {
+    users = [...INITIAL_USERS];
+    policies = INITIAL_POLICIES.map(p => ({
+      ...p,
+      threshold: typeof p.threshold === 'number' ? p.threshold : null
+    }));
+    claims = [...INITIAL_CLAIMS];
+    approvals = [...INITIAL_APPROVALS];
+    auditLogs = [...INITIAL_AUDIT_LOGS];
+    tasks = [...INITIAL_TASKS];
+    benchmarkCases = [...BENCHMARK_CASES];
+    currentUser = { ...INITIAL_USERS[0] };
+
+    saveStorage(STORAGE_KEYS.USERS, users);
+    saveStorage(STORAGE_KEYS.POLICIES, policies);
+    saveStorage(STORAGE_KEYS.CLAIMS, claims);
+    saveStorage(STORAGE_KEYS.APPROVALS, approvals);
+    saveStorage(STORAGE_KEYS.AUDIT_LOGS, auditLogs);
+    saveStorage(STORAGE_KEYS.TASKS, tasks);
+    saveStorage(STORAGE_KEYS.EVALUATIONS, benchmarkCases);
+    saveStorage(STORAGE_KEYS.CURRENT_USER, currentUser);
+    setToken(`demo_jwt_token_employee_${Date.now()}`);
+    return true;
+  },
+
   // Authentication & RBAC
   auth: {
     async getCurrentUser() {
+      currentUser = loadStorage(STORAGE_KEYS.CURRENT_USER, currentUser || INITIAL_USERS[0]);
       return currentUser;
     },
     async logout() {
       currentUser = null;
       saveStorage(STORAGE_KEYS.CURRENT_USER, null);
-      localStorage.removeItem('agentshield_jwt_token');
+      setToken(null);
       return true;
     },
     async setCurrentUserRole(role) {
+      users = loadStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
       const match = users.find(u => u.role === role) || {
         ...currentUser,
         role,
@@ -97,45 +148,85 @@ export const api = {
       };
       currentUser = match;
       saveStorage(STORAGE_KEYS.CURRENT_USER, match);
+      setToken(`demo_jwt_token_${role.toLowerCase()}_${Date.now()}`);
       return match;
     },
     async login(email, password) {
+      const cleanEmail = (email || '').trim().toLowerCase();
       const remote = await fetchBackend('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password: password || "password123" })
+        body: JSON.stringify({ email: cleanEmail, password: password || "password123" })
       });
       if (remote && remote.access_token) {
-        localStorage.setItem('agentshield_jwt_token', remote.access_token);
+        setToken(remote.access_token);
         currentUser = remote.user;
         saveStorage(STORAGE_KEYS.CURRENT_USER, remote.user);
         return { token: remote.access_token, user: remote.user };
       }
-      const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+      users = loadStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
+      let user = users.find(u => u.email.toLowerCase() === cleanEmail);
+      
+      // Auto-provision entered corporate email gracefully
       if (!user) {
-        throw new Error("Invalid credentials");
+        const usernamePart = cleanEmail.split('@')[0] || 'corporate.user';
+        const inferredName = usernamePart
+          .replace(/[._-]/g, ' ')
+          .replace(/\b\w/g, c => c.toUpperCase());
+        
+        let inferredRole = 'EMPLOYEE';
+        let inferredDept = 'Operations';
+
+        if (cleanEmail.includes('admin') || cleanEmail.includes('security') || cleanEmail.includes('infosec')) {
+          inferredRole = 'ADMIN';
+          inferredDept = 'InfoSec';
+        } else if (cleanEmail.includes('manager') || cleanEmail.includes('lead') || cleanEmail.includes('director')) {
+          inferredRole = 'MANAGER';
+          inferredDept = 'Engineering';
+        }
+
+        user = {
+          id: "usr_" + Math.random().toString(36).substring(2, 9),
+          email: cleanEmail,
+          name: inferredName,
+          role: inferredRole,
+          department: inferredDept,
+          avatar: inferredName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) || 'CU',
+          status: 'ACTIVE',
+          created_at: new Date().toISOString()
+        };
+        users.unshift(user);
+        saveStorage(STORAGE_KEYS.USERS, users);
       }
+
       currentUser = user;
       saveStorage(STORAGE_KEYS.CURRENT_USER, user);
-      return { token: "demo_jwt_token_" + Date.now(), user };
+      const token = `demo_jwt_token_${user.role.toLowerCase()}_${Date.now()}`;
+      setToken(token);
+      return { token, user };
     },
-    async register({ email, name, role = "EMPLOYEE", department = "Operations" }) {
+    async register({ email, name, department = "Operations" }) {
+      users = loadStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
       const newUser = {
         id: "usr_" + Math.random().toString(36).substring(2, 9),
-        email,
-        name,
-        role: "EMPLOYEE", // Safety: registration cannot elevate to ADMIN/MANAGER
+        email: email.trim().toLowerCase(),
+        name: name.trim(),
+        role: "EMPLOYEE", // Safety: registration defaults to EMPLOYEE
         department,
-        avatar: name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0, 2),
+        avatar: name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0, 2) || "EM",
         status: "ACTIVE",
         created_at: new Date().toISOString()
       };
-      users.push(newUser);
+      users.unshift(newUser);
       saveStorage(STORAGE_KEYS.USERS, users);
       currentUser = newUser;
       saveStorage(STORAGE_KEYS.CURRENT_USER, newUser);
-      return { token: "demo_jwt_token_" + Date.now(), user: newUser };
+      const token = `demo_jwt_token_employee_${Date.now()}`;
+      setToken(token);
+      return { token, user: newUser };
     },
     async listUsers() {
+      users = loadStorage(STORAGE_KEYS.USERS, INITIAL_USERS);
       return [...users];
     }
   },
@@ -145,6 +236,11 @@ export const api = {
     async getSummary() {
       const live = await fetchBackend('/dashboard/summary');
       if (live) return live;
+
+      tasks = loadStorage(STORAGE_KEYS.TASKS, INITIAL_TASKS);
+      claims = loadStorage(STORAGE_KEYS.CLAIMS, INITIAL_CLAIMS);
+      approvals = loadStorage(STORAGE_KEYS.APPROVALS, INITIAL_APPROVALS);
+      auditLogs = loadStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
 
       const totalTasks = tasks.length;
       const succeededTasks = tasks.filter(t => t.status === "SUCCEEDED").length;
@@ -164,10 +260,11 @@ export const api = {
         totalSpendApproved,
         policyViolations,
         avgLatencyMs: 242,
-        unauthorizedExecutions: 0 // Core metric: zero unauthorized actions
+        unauthorizedExecutions: 0
       };
     },
     async getRecentActivity() {
+      auditLogs = loadStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
       return auditLogs.slice(0, 8);
     }
   },
@@ -175,9 +272,11 @@ export const api = {
   // Agent Tasks & Workflow Execution
   tasks: {
     async list() {
+      tasks = loadStorage(STORAGE_KEYS.TASKS, INITIAL_TASKS);
       return [...tasks].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     },
     async getById(taskId) {
+      tasks = loadStorage(STORAGE_KEYS.TASKS, INITIAL_TASKS);
       const task = tasks.find(t => t.id === taskId);
       if (!task) throw new Error("Task not found");
       return task;
@@ -187,11 +286,46 @@ export const api = {
      * Simulates the 4-Agent LangGraph Workflow and Deterministic Governance Decision!
      */
     async submitTask({ prompt, receiptFile, syntheticMetadata }) {
-      const parsedAmount = syntheticMetadata?.amount || 
-        (prompt.match(/₹\s*([0-9,]+)/) ? parseInt(prompt.match(/₹\s*([0-9,]+)/)[1].replace(/,/g, ''), 10) : 4500);
-      
-      const parsedMerchant = syntheticMetadata?.merchant || "IndiGo Airlines";
-      const parsedCategory = syntheticMetadata?.category || "Travel";
+      currentUser = loadStorage(STORAGE_KEYS.CURRENT_USER, currentUser || INITIAL_USERS[0]);
+      policies = loadStorage(STORAGE_KEYS.POLICIES, INITIAL_POLICIES);
+      claims = loadStorage(STORAGE_KEYS.CLAIMS, INITIAL_CLAIMS);
+      approvals = loadStorage(STORAGE_KEYS.APPROVALS, INITIAL_APPROVALS);
+      auditLogs = loadStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
+      tasks = loadStorage(STORAGE_KEYS.TASKS, INITIAL_TASKS);
+
+      // Intelligent natural language entity extraction
+      let parsedAmount = syntheticMetadata?.amount;
+      const amountRegexMatch = prompt.match(/(?:₹|Rs\.?|INR)\s*([0-9,]+)/i) || prompt.match(/([0-9,]+)\s*(?:INR|rupees)/i);
+      if (amountRegexMatch) {
+        parsedAmount = parseInt(amountRegexMatch[1].replace(/,/g, ''), 10);
+      }
+      if (!parsedAmount) parsedAmount = 4200;
+
+      let parsedMerchant = syntheticMetadata?.merchant;
+      if (!parsedMerchant) {
+        const lowerPrompt = prompt.toLowerCase();
+        if (lowerPrompt.includes("indigo")) parsedMerchant = "IndiGo Airlines";
+        else if (lowerPrompt.includes("air india")) parsedMerchant = "Air India";
+        else if (lowerPrompt.includes("apple")) parsedMerchant = "Apple Authorized Reseller";
+        else if (lowerPrompt.includes("playstation") || lowerPrompt.includes("psn") || lowerPrompt.includes("gaming")) parsedMerchant = "PlayStation Network Store";
+        else if (lowerPrompt.includes("uber")) parsedMerchant = "Uber Technologies";
+        else parsedMerchant = "Corporate Vendor Partner";
+      }
+
+      let parsedCategory = syntheticMetadata?.category;
+      if (!parsedCategory) {
+        const lowerPrompt = prompt.toLowerCase();
+        if (lowerPrompt.includes("game") || lowerPrompt.includes("playstation") || lowerPrompt.includes("personal") || lowerPrompt.includes("voucher")) {
+          parsedCategory = "Personal / Gaming";
+        } else if (lowerPrompt.includes("hardware") || lowerPrompt.includes("monitor") || lowerPrompt.includes("dock") || lowerPrompt.includes("apple")) {
+          parsedCategory = "Hardware";
+        } else if (lowerPrompt.includes("flight") || lowerPrompt.includes("travel") || lowerPrompt.includes("hotel") || lowerPrompt.includes("airline")) {
+          parsedCategory = "Travel";
+        } else {
+          parsedCategory = "General Expense";
+        }
+      }
+
       const receiptName = receiptFile?.name || syntheticMetadata?.fileName || "expense_receipt.pdf";
 
       // Attempt live execution through FastAPI MultiAgentWorkflow
@@ -218,7 +352,7 @@ export const api = {
 
       // Evaluate active policies deterministically
       const thresholdPolicy = policies.find(p => p.policy_code === "POL-THR-03" && p.active);
-      const thresholdLimit = thresholdPolicy ? thresholdPolicy.threshold : 5000;
+      const thresholdLimit = (thresholdPolicy && typeof thresholdPolicy.threshold === 'number') ? thresholdPolicy.threshold : 5000;
       const personalExpensePolicy = policies.find(p => p.policy_code === "POL-CAT-02" && p.active);
       const receiptPolicy = policies.find(p => p.policy_code === "POL-REC-01" && p.active);
       const duplicatePolicy = policies.find(p => p.policy_code === "POL-DUP-04" && p.active);
@@ -236,7 +370,7 @@ export const api = {
          prompt.toLowerCase().includes("playstation") ||
          prompt.toLowerCase().includes("game"));
 
-      const hasReceipt = Boolean(receiptFile || syntheticMetadata?.fileName || prompt.toLowerCase().includes("receipt"));
+      const hasReceipt = Boolean(receiptFile || syntheticMetadata?.fileName || prompt.toLowerCase().includes("receipt") || prompt.toLowerCase().includes("expense"));
 
       let decision = "ALLOW";
       let reasonCodes = [];
@@ -319,16 +453,16 @@ export const api = {
           {
             step: 1,
             agent: "Planner Agent",
-            desc: `Decompose task "${prompt.substring(0, 40)}..." into structured agent graph execution`,
+            desc: `Decompose task "${prompt.substring(0, 45)}..." into structured agent graph execution`,
             status: "COMPLETED",
             output: { intent: "EXPENSE_REIMBURSEMENT", entities: { amount: parsedAmount, merchant: parsedMerchant } }
           },
           {
             step: 2,
             agent: "Receipt Agent",
-            desc: `OCR Document extraction: Merchant=${parsedMerchant}, Amount=₹${parsedAmount}, Category=${parsedCategory}`,
+            desc: `OCR Document extraction: Merchant=${parsedMerchant}, Amount=₹${parsedAmount.toLocaleString('en-IN')}, Category=${parsedCategory}`,
             status: hasReceipt ? "COMPLETED" : "FAILED",
-            output: { confidence: hasReceipt ? 0.96 : 0.0, extracted: { merchant: parsedMerchant, amount: parsedAmount } }
+            output: { confidence: hasReceipt ? 0.98 : 0.0, extracted: { merchant: parsedMerchant, amount: parsedAmount } }
           },
           {
             step: 3,
@@ -434,6 +568,7 @@ export const api = {
     },
 
     async resumeTask(taskId) {
+      tasks = loadStorage(STORAGE_KEYS.TASKS, INITIAL_TASKS);
       const task = tasks.find(t => t.id === taskId);
       if (!task) throw new Error("Task not found");
       
@@ -453,9 +588,11 @@ export const api = {
   // Expense Claims
   claims: {
     async list() {
+      claims = loadStorage(STORAGE_KEYS.CLAIMS, INITIAL_CLAIMS);
       return [...claims];
     },
     async getById(claimId) {
+      claims = loadStorage(STORAGE_KEYS.CLAIMS, INITIAL_CLAIMS);
       const claim = claims.find(c => c.id === claimId);
       if (!claim) throw new Error("Claim not found");
       return claim;
@@ -465,16 +602,22 @@ export const api = {
   // Human Approvals Management
   approvals: {
     async listPending() {
+      approvals = loadStorage(STORAGE_KEYS.APPROVALS, INITIAL_APPROVALS);
       return approvals.filter(a => a.status === "PENDING");
     },
     async listAll() {
+      approvals = loadStorage(STORAGE_KEYS.APPROVALS, INITIAL_APPROVALS);
       return [...approvals];
     },
     async approve(approvalId, reason = "Approved by manager after policy and receipt inspection") {
-      // Role security check
+      currentUser = loadStorage(STORAGE_KEYS.CURRENT_USER, currentUser || INITIAL_USERS[0]);
       if (currentUser.role === "EMPLOYEE") {
         throw new Error("PERMISSION_DENIED: Employee role cannot approve governance requests. Manager or Admin role required.");
       }
+
+      approvals = loadStorage(STORAGE_KEYS.APPROVALS, INITIAL_APPROVALS);
+      claims = loadStorage(STORAGE_KEYS.CLAIMS, INITIAL_CLAIMS);
+      auditLogs = loadStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
 
       const approval = approvals.find(a => a.id === approvalId);
       if (!approval) throw new Error("Approval record not found");
@@ -518,7 +661,7 @@ export const api = {
         resource: `approval:${approvalId}`,
         governance_decision: "ALLOW",
         reason_codes: ["MANAGER_APPROVAL_GRANTED", "ACTION_HASH_VERIFIED"],
-        details: `Manager ${currentUser.name} approved claim ${approval.claim_id} for ₹${approval.proposed_action.amount}. Cryptographic action hash verified.`
+        details: `Manager ${currentUser.name} approved claim ${approval.claim_id} for ₹${approval.proposed_action.amount?.toLocaleString('en-IN')}. Cryptographic action hash verified.`
       };
       auditLogs.unshift(audit);
       saveStorage(STORAGE_KEYS.AUDIT_LOGS, auditLogs);
@@ -527,9 +670,15 @@ export const api = {
     },
 
     async reject(approvalId, reason) {
+      currentUser = loadStorage(STORAGE_KEYS.CURRENT_USER, currentUser || INITIAL_USERS[0]);
       if (currentUser.role === "EMPLOYEE") {
         throw new Error("PERMISSION_DENIED: Employee role cannot reject governance requests.");
       }
+
+      approvals = loadStorage(STORAGE_KEYS.APPROVALS, INITIAL_APPROVALS);
+      claims = loadStorage(STORAGE_KEYS.CLAIMS, INITIAL_CLAIMS);
+      tasks = loadStorage(STORAGE_KEYS.TASKS, INITIAL_TASKS);
+      auditLogs = loadStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
 
       const approval = approvals.find(a => a.id === approvalId);
       if (!approval) throw new Error("Approval not found");
@@ -593,12 +742,17 @@ export const api = {
         saveStorage(STORAGE_KEYS.POLICIES, policies);
         return policies;
       }
+      policies = loadStorage(STORAGE_KEYS.POLICIES, INITIAL_POLICIES);
       return [...policies];
     },
     async toggle(policyId) {
+      currentUser = loadStorage(STORAGE_KEYS.CURRENT_USER, currentUser || INITIAL_USERS[0]);
       if (currentUser.role !== "ADMIN") {
         throw new Error("PERMISSION_DENIED: Only Admin can modify or toggle active policies.");
       }
+      policies = loadStorage(STORAGE_KEYS.POLICIES, INITIAL_POLICIES);
+      auditLogs = loadStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
+
       const pol = policies.find(p => p.id === policyId);
       if (!pol) throw new Error("Policy not found");
 
@@ -625,9 +779,13 @@ export const api = {
       return pol;
     },
     async updateThreshold(policyId, newThreshold) {
+      currentUser = loadStorage(STORAGE_KEYS.CURRENT_USER, currentUser || INITIAL_USERS[0]);
       if (currentUser.role !== "ADMIN") {
         throw new Error("PERMISSION_DENIED: Only Admin can update policy thresholds.");
       }
+      policies = loadStorage(STORAGE_KEYS.POLICIES, INITIAL_POLICIES);
+      auditLogs = loadStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
+
       const pol = policies.find(p => p.id === policyId);
       if (!pol) throw new Error("Policy not found");
 
@@ -660,6 +818,7 @@ export const api = {
   // Audit Logs
   audit: {
     async list() {
+      auditLogs = loadStorage(STORAGE_KEYS.AUDIT_LOGS, INITIAL_AUDIT_LOGS);
       return [...auditLogs];
     }
   },
@@ -670,6 +829,7 @@ export const api = {
       const live = await fetchBackend('/evaluations/summary');
       if (live) return live;
 
+      benchmarkCases = loadStorage(STORAGE_KEYS.EVALUATIONS, BENCHMARK_CASES);
       const total = benchmarkCases.length;
       const passed = benchmarkCases.filter(c => c.status === "PASS").length;
       const totalLatency = benchmarkCases.reduce((sum, c) => sum + c.latencyMs, 0);
@@ -679,27 +839,28 @@ export const api = {
         passedRuns: passed,
         taskCompletionRate: 100,
         policyComplianceAccuracy: 100,
-        unauthorizedSensitiveExecutions: 0, // Target: 0
+        unauthorizedSensitiveExecutions: 0,
         approvalEnforcementRate: 100,
         falseAllowRate: 0,
         averageLatencyMs: Math.round(totalLatency / total),
         benchmarkVersion: "v1.0-hackathon-eval",
-        evaluatedAt: "2026-11-03T18:00:00Z"
+        evaluatedAt: new Date().toISOString()
       };
     },
     async getCases() {
       const live = await fetchBackend('/evaluations/cases');
       if (live && live.length) return live;
+      benchmarkCases = loadStorage(STORAGE_KEYS.EVALUATIONS, BENCHMARK_CASES);
       return [...benchmarkCases];
     },
     async runBenchmark() {
       const live = await fetchBackend('/evaluations/run', { method: 'POST' });
       if (live) return live;
 
-      // Re-run benchmark simulation with real measured timings
+      benchmarkCases = loadStorage(STORAGE_KEYS.EVALUATIONS, BENCHMARK_CASES);
       benchmarkCases = benchmarkCases.map(c => ({
         ...c,
-        latencyMs: Math.floor(175 + Math.random() * 210),
+        latencyMs: Math.floor(180 + Math.random() * 190),
         timestamp: new Date().toISOString()
       }));
       saveStorage(STORAGE_KEYS.EVALUATIONS, benchmarkCases);
@@ -707,4 +868,3 @@ export const api = {
     }
   }
 };
-
