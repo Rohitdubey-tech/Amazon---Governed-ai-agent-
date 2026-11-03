@@ -11,6 +11,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 import {
   PieChart,
   Pie,
@@ -18,10 +19,15 @@ import {
   Tooltip,
   ResponsiveContainer,
   AreaChart,
-  Area
+  Area,
+  LabelList
 } from 'recharts';
 
 export function DashboardPage() {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+  const waveColor = isLight ? '#16a34a' : '#ccff00';
+
   const [summary, setSummary] = useState(null);
   const [recentClaims, setRecentClaims] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -296,23 +302,73 @@ export function DashboardPage() {
               </span>
             </div>
 
-            <div className="h-20 w-full mt-2">
+            <div className="h-24 w-full mt-2">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={waveData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                <AreaChart data={waveData} margin={{ top: 18, right: 14, left: 14, bottom: 4 }}>
                   <defs>
                     <linearGradient id="glowWave" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ccff00" stopOpacity={0.4} />
+                      <stop offset="5%" stopColor={waveColor} stopOpacity={isLight ? 0.25 : 0.45} />
                       <stop offset="95%" stopColor="#22c55e" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-[#0B0F17]/95 border border-[#ccff00]/30 rounded-lg px-2.5 py-1 shadow-xl text-[11px] font-mono backdrop-blur-md">
+                            <span className="text-slate-400">Node {data.time}: </span>
+                            <span className="text-[#ccff00] font-bold">${data.val}k profit</span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
                   <Area
                     type="monotone"
                     dataKey="val"
-                    stroke="#ccff00"
+                    stroke={waveColor}
                     strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#glowWave)"
-                  />
+                    dot={{
+                      r: 3.5,
+                      fill: waveColor,
+                      stroke: isLight ? '#ffffff' : '#0B0F17',
+                      strokeWidth: 2,
+                    }}
+                    activeDot={{
+                      r: 5.5,
+                      fill: '#ffffff',
+                      stroke: waveColor,
+                      strokeWidth: 2.5,
+                    }}
+                  >
+                    <LabelList
+                      dataKey="val"
+                      position="top"
+                      offset={8}
+                      content={(props) => {
+                        const { x, y, value } = props;
+                        if (x == null || y == null) return null;
+                        return (
+                          <text
+                            x={x}
+                            y={y - 7}
+                            fill={waveColor}
+                            fontSize="10"
+                            fontWeight="800"
+                            textAnchor="middle"
+                            fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+                            className="select-none pointer-events-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+                          >
+                            {value}
+                          </text>
+                        );
+                      }}
+                    />
+                  </Area>
                 </AreaChart>
               </ResponsiveContainer>
             </div>
