@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Production build artifacts
+frontend/dist/
+dist/
+build/
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+backend/**/__pycache__/
+.pytest_cache/
+venv/
+env/
+.env
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Storage
+storage/
+*.log
