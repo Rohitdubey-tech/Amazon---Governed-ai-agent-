@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from backend.app.config import settings
 from backend.app.database.mongodb import db_manager
+from backend.app.database.sqlalchemy_db import init_sql_database
 
 # Routers
 from backend.app.api.auth_routes import router as auth_router
@@ -18,8 +19,9 @@ from backend.app.api.dashboard_routes import router as dashboard_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Connect to MongoDB Atlas (or initialize robust local fallback)
+    # Startup: Connect to MongoDB and initialize SQLAlchemy ORM tables
     db_manager.connect()
+    init_sql_database()
     yield
     # Shutdown
 
