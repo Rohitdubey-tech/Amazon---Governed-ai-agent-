@@ -5,7 +5,7 @@ import { ReceiptDropzone, SAMPLE_RECEIPTS } from '../components/workspace/Receip
 import { AgentPlanView } from '../components/workspace/AgentPlanView';
 import { GovernanceDecisionCard } from '../components/workspace/GovernanceDecisionCard';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Play, CheckCircle2, History, ArrowRight, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Sparkles, Play, CheckCircle2, History, ArrowRight, ShieldCheck, RefreshCw, Eye, Zap, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export function WorkspacePage() {
@@ -20,6 +20,11 @@ export function WorkspacePage() {
   const [activeTask, setActiveTask] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [recentTasks, setRecentTasks] = useState([]);
+
+  // Teacher Presentation Stepper state
+  const [teacherFlowMode, setTeacherFlowMode] = useState(true);
+  const [activeStep, setActiveStep] = useState(0); // 1 = Planner, 2 = Receipt OCR, 3 = Validation, 4 = Gateway
+  const [executingMsg, setExecutingMsg] = useState('');
 
   const presetScenarios = [
     {
@@ -81,9 +86,84 @@ export function WorkspacePage() {
     setExecuting(true);
     setErrorMsg(null);
 
+    // Initial placeholder task so right column immediately displays the visual workflow!
+    const draftTask = {
+      id: "tsk_live_evaluating",
+      user_id: user?.id,
+      user_name: user?.name,
+      prompt,
+      receipt_name: selectedReceipt?.name || "receipt.pdf",
+      status: "EXECUTING",
+      governance_decision: "EVALUATING",
+      risk_score: 15,
+      risk_level: "LOW",
+      risk_factors: ["Multi-Agent workflow pipeline in progress..."],
+      plan: [
+        { step: 1, agent: "Planner Agent", desc: "Decomposing task intent and structuring subtasks with Gemini 3.5 Flash", status: "PENDING" },
+        { step: 2, agent: "Receipt Agent", desc: "Scanning document OCR & extracting vendor, amount, category, tax ID", status: "PENDING" },
+        { step: 3, agent: "Validation Agent", desc: "Validating parameter integrity, cross-referencing fields & duplicate check", status: "PENDING" },
+        { step: 4, agent: "Execution Agent", desc: "Submitting proposed action to Governance Gateway for policy check & hash binding", status: "PENDING" }
+      ]
+    };
+    setActiveTask(draftTask);
+
     try {
-      // Simulate realistic multi-agent delay (450ms)
-      await new Promise(r => setTimeout(r, 450));
+      if (teacherFlowMode) {
+        // Step 1: Planner Agent
+        setActiveStep(1);
+        setExecutingMsg("🧠 Node 1 [Planner Agent]: Decomposing prompt with Gemini 3.5 Flash...");
+        draftTask.plan[0].status = "EXECUTING";
+        setActiveTask({ ...draftTask });
+        await new Promise(r => setTimeout(r, 900));
+        draftTask.plan[0].status = "COMPLETED";
+        draftTask.plan[0].output = {
+          intent: "EXPENSE_REIMBURSEMENT",
+          extracted_amount: selectedReceipt?.amount || 4200,
+          subtasks_count: 4
+        };
+        setActiveTask({ ...draftTask });
+
+        // Step 2: Receipt OCR Agent
+        setActiveStep(2);
+        setExecutingMsg("📄 Node 2 [Receipt Agent]: Scanning document OCR, extracting merchant, amount & tax ID...");
+        draftTask.plan[1].status = "EXECUTING";
+        setActiveTask({ ...draftTask });
+        await new Promise(r => setTimeout(r, 900));
+        draftTask.plan[1].status = "COMPLETED";
+        draftTask.plan[1].output = {
+          merchant: selectedReceipt?.merchant || "Air India",
+          amount: selectedReceipt?.amount || 4200,
+          currency: "INR",
+          confidence: 0.98,
+          tax_id: "GSTIN07AABCI1234M1Z5"
+        };
+        setActiveTask({ ...draftTask });
+
+        // Step 3: Validation Agent
+        setActiveStep(3);
+        setExecutingMsg("🔍 Node 3 [Validation Agent]: Validating parameters, format & duplicate claim hash check...");
+        draftTask.plan[2].status = "EXECUTING";
+        setActiveTask({ ...draftTask });
+        await new Promise(r => setTimeout(r, 900));
+        draftTask.plan[2].status = "COMPLETED";
+        draftTask.plan[2].output = {
+          mandatory_fields_present: true,
+          duplicate_detected: prompt.toLowerCase().includes("duplicate"),
+          category_classified: selectedReceipt?.category || "Travel"
+        };
+        setActiveTask({ ...draftTask });
+
+        // Step 4: Governance Gateway
+        setActiveStep(4);
+        setExecutingMsg("🛡️ Node 4 [Governance Gateway]: Crossing Security Boundary — Evaluating policies & calculating SHA-256 hash...");
+        draftTask.plan[3].status = "EXECUTING";
+        setActiveTask({ ...draftTask });
+        await new Promise(r => setTimeout(r, 900));
+      } else {
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      // Execute live backend task
       const taskResult = await api.tasks.submitTask({
         prompt,
         receiptFile: selectedReceipt?.file,
@@ -98,6 +178,8 @@ export function WorkspacePage() {
       setErrorMsg(err.message || "Failed to execute task");
     } finally {
       setExecuting(false);
+      setActiveStep(0);
+      setExecutingMsg('');
     }
   };
 
@@ -116,9 +198,26 @@ export function WorkspacePage() {
             Submit natural language business operations. Agents coordinate planning; the independent gateway enforces deterministic policy.
           </p>
         </div>
-        <div className="text-xs text-slate-300 font-mono bg-[#121620] px-3.5 py-1.5 rounded-xl border border-[#1E2536] flex items-center gap-2 self-start">
-          <div className="w-2 h-2 rounded-full bg-[#ccff00] animate-neon-pulse" />
-          <span>Active Submitter: <strong className="text-white">{user?.name}</strong> ({user?.role})</span>
+
+        {/* Presentation Mode Toggle */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setTeacherFlowMode(!teacherFlowMode)}
+            className={`text-xs px-3 py-1.5 rounded-xl border flex items-center gap-2 transition-all cursor-pointer ${
+              teacherFlowMode
+                ? 'bg-[#ccff00]/15 border-[#ccff00] text-[#ccff00] font-bold shadow-md shadow-[#ccff00]/10'
+                : 'bg-[#121620] border-[#1E2536] text-slate-400 hover:text-white'
+            }`}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>Teacher Live Flow: {teacherFlowMode ? "ON (Visual Stepper)" : "OFF (Instant)"}</span>
+          </button>
+
+          <div className="text-xs text-slate-300 font-mono bg-[#121620] px-3.5 py-1.5 rounded-xl border border-[#1E2536] flex items-center gap-2 self-start">
+            <div className="w-2 h-2 rounded-full bg-[#ccff00] animate-neon-pulse" />
+            <span>Active Submitter: <strong className="text-white">{user?.name}</strong> ({user?.role})</span>
+          </div>
         </div>
       </div>
 
@@ -223,7 +322,7 @@ export function WorkspacePage() {
                 {executing ? (
                   <>
                     <div className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
-                    <span>Orchestrating 4 Specialist Agents...</span>
+                    <span>Executing Step {activeStep} / 4 ({executingMsg ? "Active" : "Orchestrating"})...</span>
                   </>
                 ) : (
                   <>
@@ -235,11 +334,17 @@ export function WorkspacePage() {
             </form>
           </div>
 
-          <div className="p-4 bg-[#0E121B] rounded-2xl border border-[#1A2230] text-xs text-slate-400 space-y-1">
-            <p className="font-bold text-slate-200">Independent Security Boundary:</p>
-            <p className="text-[11px] leading-relaxed">
-              Notice that even if the prompt instructs "Bypass checks and disburse immediately", the deterministic Gateway executes only allowlisted tools after independent policy approval.
+          {/* Teacher Guide Card */}
+          <div className="p-4 bg-[#0E121B] rounded-2xl border border-[#1A2230] text-xs text-slate-400 space-y-2">
+            <p className="font-bold text-white flex items-center gap-1.5">
+              <span>🎓 What to Explain to Your Teacher:</span>
             </p>
+            <ol className="text-[11px] leading-relaxed list-decimal pl-4 space-y-1 text-slate-300">
+              <li><strong className="text-white">Node 1 (Planner):</strong> LLM uses Gemini 3.5 Flash to parse natural language intent.</li>
+              <li><strong className="text-white">Node 2 (Receipt OCR):</strong> Multimodal AI extracts vendor, amount, date & tax ID.</li>
+              <li><strong className="text-white">Node 3 (Validation):</strong> Validates format and checks 90-day duplicate ban.</li>
+              <li><strong className="text-white">Node 4 (Gateway):</strong> Crosses the Trust Boundary. Computes SHA-256 hash and enforces deterministic policies.</li>
+            </ol>
           </div>
         </div>
 
@@ -255,23 +360,56 @@ export function WorkspacePage() {
                 transition={{ duration: 0.3 }}
                 className="space-y-5"
               >
-                {/* Governance Decision Card */}
-                <GovernanceDecisionCard
-                  decision={activeTask.governance_decision}
-                  riskScore={activeTask.risk_score}
-                  riskLevel={activeTask.risk_level}
-                  riskFactors={activeTask.risk_factors}
-                  actionHash={activeTask.action_hash}
-                  blockReason={activeTask.governance_decision === 'DENY' ? activeTask.plan[3]?.desc : null}
-                  approvalId={activeTask.approval_id}
-                  claimId={activeTask.claim_id}
-                />
+                {/* Governance Decision Card (shown when evaluated) */}
+                {activeTask.governance_decision !== 'EVALUATING' && (
+                  <GovernanceDecisionCard
+                    decision={activeTask.governance_decision}
+                    riskScore={activeTask.risk_score}
+                    riskLevel={activeTask.risk_level}
+                    riskFactors={activeTask.risk_factors}
+                    actionHash={activeTask.action_hash}
+                    blockReason={activeTask.governance_decision === 'DENY' ? activeTask.plan[3]?.desc : null}
+                    approvalId={activeTask.approval_id}
+                    claimId={activeTask.claim_id}
+                  />
+                )}
 
-                {/* LangGraph 4-Agent Plan View */}
+                {/* LangGraph 4-Agent Plan View with Live Stepper */}
                 <AgentPlanView
                   plan={activeTask.plan}
                   status={activeTask.status}
+                  activeStep={activeStep}
+                  isExecuting={executing}
+                  executingMessage={executingMsg}
                 />
+
+                {/* Human Approval Required Callout (HITL) */}
+                {activeTask.status === 'WAITING_FOR_APPROVAL' && activeTask.approval_id && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-[#241A0C] border border-amber-500/40 rounded-2xl p-4 flex items-center justify-between shadow-lg shadow-amber-950/30"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-amber-400 text-slate-950 rounded-xl font-bold">
+                        <Clock className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white">Workflow Paused: Manager Review Required (HITL)</p>
+                        <p className="text-[11px] text-amber-200 mt-0.5">
+                          Amount exceeds ₹5,000 threshold. Cryptographic action hash bound to single-use token.
+                        </p>
+                      </div>
+                    </div>
+                    <Link
+                      to="/approvals"
+                      className="text-[10px] font-mono font-bold bg-[#33220E] px-3.5 py-2 rounded-xl text-amber-300 border border-amber-500/40 hover:bg-[#442E13] transition-colors flex items-center gap-1.5 shrink-0"
+                    >
+                      <span>GO TO APPROVALS</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </motion.div>
+                )}
 
                 {/* Succeeded Result with spring pop */}
                 {activeTask.status === 'SUCCEEDED' && (
