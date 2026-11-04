@@ -225,6 +225,7 @@ AgentShield AI was evaluated against a **reproducible 50-scenario benchmark suit
 
 ---
 
-## 10. License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+## 10. Author 
+Rohit Kumar Dubey
+Chawan Pravin Pralhad
+Karwan Kamboj
