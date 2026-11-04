@@ -18,6 +18,10 @@ class Settings:
     except Exception:
         CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    if FRONTEND_URL and FRONTEND_URL not in CORS_ORIGINS:
+        CORS_ORIGINS.append(FRONTEND_URL)
+
     # Security
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "agentshield_development_secret_key_change_in_prod")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
