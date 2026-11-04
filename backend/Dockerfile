@@ -8,17 +8,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements (handles both root context and backend/ context)
-COPY requirements.txt* backend/requirements.txt* /tmp/
-RUN if [ -f "/tmp/requirements.txt" ]; then pip install --no-cache-dir -r /tmp/requirements.txt; elif [ -f "/tmp/backend/requirements.txt" ]; then pip install --no-cache-dir -r /tmp/backend/requirements.txt; fi
+# Install python dependencies from backend folder
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy application source
-COPY . /tmp/src/
-RUN if [ -d "/tmp/src/backend" ]; then \
-      cp -r /tmp/src/backend /app/backend; \
-    elif [ -d "/tmp/src/app" ]; then \
-      mkdir -p /app/backend && cp -r /tmp/src/* /app/backend/; \
-    fi && rm -rf /tmp/src
+# Copy backend source into /app/backend so "backend.app.main:app" imports work
+COPY . /app/backend
 
 ENV PYTHONPATH=/app
 ENV APP_ENV=production
