@@ -5,17 +5,21 @@ Connects to MongoDB, creates the 'agentshield_ai' database, sets up collections 
 and seeds initial corporate governance data (users, policies, claims, tasks, approvals, audit logs).
 """
 
+import os
 import sys
 import logging
 import bcrypt
 from datetime import datetime, timezone, timedelta
 from pymongo import MongoClient, ASCENDING
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("init_mongodb")
 
-MONGODB_URI = "mongodb://localhost:27017"
-DB_NAME = "agentshield_ai"
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+DB_NAME = os.getenv("MONGODB_DATABASE", "agentshield_ai")
 
 def init_database():
     logger.info(f"Connecting to MongoDB at {MONGODB_URI}...")

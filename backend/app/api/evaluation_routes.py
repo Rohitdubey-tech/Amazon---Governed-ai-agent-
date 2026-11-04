@@ -1,3 +1,5 @@
+import os
+import json
 from typing import List
 from fastapi import APIRouter
 from backend.app.schemas.evaluation_schema import EvaluationSummary, BenchmarkCaseResponse
@@ -5,8 +7,19 @@ from backend.evaluation.benchmark_runner import benchmark_runner
 
 router = APIRouter(prefix="/evaluations", tags=["50-Benchmark Governance Evaluation"])
 
-# Global cache of latest benchmark run
-_latest_report = benchmark_runner.run_benchmark()
+REPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "evaluation", "benchmark_report.json")
+
+def load_or_run_report():
+    if os.path.exists(REPORT_PATH):
+        try:
+            with open(REPORT_PATH, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return benchmark_runner.run_benchmark()
+
+# Global cache of latest benchmark run (lazy or cached load)
+_latest_report = load_or_run_report()
 
 @router.get("/summary", response_model=EvaluationSummary)
 def get_summary():
@@ -32,4 +45,3 @@ def run_benchmark():
     global _latest_report
     _latest_report = benchmark_runner.run_benchmark()
     return get_summary()
-

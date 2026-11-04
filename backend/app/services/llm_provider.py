@@ -58,10 +58,19 @@ class LLMProvider:
                     "Return ONLY valid JSON in this format: {\"extracted_amount\": <float or null>, \"intent\": \"EXPENSE_REIMBURSEMENT\", \"subtasks\": [\"1. ...\", \"2. ...\", \"3. ...\", \"4. ...\"]}\n"
                     f"User Prompt: {user_prompt}"
                 )
-                response = self.client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=prompt_instruction
-                )
+                response = None
+                for candidate_model in ['gemini-3.5-flash-lite', 'gemini-3.5-flash']:
+                    try:
+                        response = self.client.models.generate_content(
+                            model=candidate_model,
+                            contents=prompt_instruction
+                        )
+                        if response and response.text:
+                            break
+                    except Exception as model_err:
+                        logger.debug(f"Candidate {candidate_model} error: {model_err}")
+                if not response or not response.text:
+                    raise ValueError("Empty response from Gemini API")
                 raw_text = response.text.strip()
                 clean_json = re.sub(r"^```(?:json)?\n|\n```$", "", raw_text, flags=re.MULTILINE).strip()
                 parsed = json.loads(clean_json)
@@ -121,10 +130,19 @@ class LLMProvider:
                     "Return ONLY valid JSON with keys: merchant (string), amount (float), currency (string, e.g. INR), category (string), tax_id (string or null).\n"
                     f"Receipt Text:\n{receipt_text[:1500]}"
                 )
-                response = self.client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=extraction_prompt
-                )
+                response = None
+                for candidate_model in ['gemini-3.5-flash-lite', 'gemini-3.5-flash']:
+                    try:
+                        response = self.client.models.generate_content(
+                            model=candidate_model,
+                            contents=extraction_prompt
+                        )
+                        if response and response.text:
+                            break
+                    except Exception as model_err:
+                        logger.debug(f"Candidate {candidate_model} error: {model_err}")
+                if not response or not response.text:
+                    raise ValueError("Empty response from Gemini API")
                 clean_json = re.sub(r"^```(?:json)?\n|\n```$", "", response.text.strip(), flags=re.MULTILINE).strip()
                 parsed = json.loads(clean_json)
                 return {

@@ -110,18 +110,15 @@ async def websocket_agent_stream(websocket: WebSocket):
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)
 
-# Mount REST API Routers under /api/v1
-api_v1 = FastAPI()
-api_v1.include_router(auth_router)
-api_v1.include_router(agent_router)
-api_v1.include_router(claim_router)
-api_v1.include_router(approval_router)
-api_v1.include_router(policy_router)
-api_v1.include_router(audit_router)
-api_v1.include_router(evaluation_router)
-api_v1.include_router(dashboard_router)
-
-app.mount("/api/v1", api_v1)
+# Include REST API Routers under /api/v1
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(agent_router, prefix="/api/v1")
+app.include_router(claim_router, prefix="/api/v1")
+app.include_router(approval_router, prefix="/api/v1")
+app.include_router(policy_router, prefix="/api/v1")
+app.include_router(audit_router, prefix="/api/v1")
+app.include_router(evaluation_router, prefix="/api/v1")
+app.include_router(dashboard_router, prefix="/api/v1")
 
 # Global error handler
 @app.exception_handler(Exception)

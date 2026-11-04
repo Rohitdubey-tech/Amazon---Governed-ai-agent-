@@ -105,6 +105,20 @@ class GovernanceGateway:
         if approval.get("status") != "PENDING" or approval.get("consumed"):
             raise ValueError("Approval token has already been consumed or resolved.")
 
+        # Check expiration
+        expires_at_str = approval.get("expires_at")
+        if expires_at_str:
+            try:
+                expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+                if datetime.now(timezone.utc) > expires_at:
+                    approval_repo.update_approval(approval_id, {"status": "EXPIRED", "consumed": True})
+                    raise ValueError("APPROVAL_EXPIRED: Approval token has expired.")
+            except ValueError as ve:
+                if "APPROVAL_EXPIRED" in str(ve):
+                    raise
+            except Exception:
+                pass
+
         # Re-compute action hash to guarantee exact-action integrity
         recomputed_hash = compute_action_hash(approval.get("proposed_action", {}))
         if recomputed_hash != approval.get("action_hash"):

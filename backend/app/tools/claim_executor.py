@@ -12,8 +12,19 @@ class ClaimExecutorTool:
         if not claim:
             raise ValueError(f"Claim {claim_id} not found.")
 
+        # Replay safety: if already processed with this exact key, return existing execution safely
+        if claim.get("status") == "PROCESSED" and claim.get("idempotency_key") == idempotency_key:
+            return {
+                "success": True,
+                "claim_id": claim_id,
+                "status": "PROCESSED",
+                "executed_at": claim.get("executed_at"),
+                "idempotency_key": idempotency_key,
+                "replayed": True
+            }
+
         now_iso = datetime.now(timezone.utc).isoformat()
-        updated = claim_repo.update_claim(claim_id, {
+        claim_repo.update_claim(claim_id, {
             "status": "PROCESSED",
             "executed_at": now_iso,
             "idempotency_key": idempotency_key
@@ -27,4 +38,3 @@ class ClaimExecutorTool:
         }
 
 claim_executor = ClaimExecutorTool()
-
